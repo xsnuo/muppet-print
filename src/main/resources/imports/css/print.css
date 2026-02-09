@@ -1,0 +1,125 @@
+@font-face {
+    font-family: 'MiSansVF';
+    src: url('../font/MiSansVF.ttf') format('truetype');
+}
+
+@font-face {
+    font-family: 'HarmonyOS_Sans_Condensed';
+    src: url('../font/HarmonyOS_Sans_Condensed_100.ttf') format('truetype');
+    font-weight: 100;
+}
+
+@font-face {
+    font-family: 'HarmonyOS_Sans_Condensed';
+    src: url('../font/HarmonyOS_Sans_Condensed_200.ttf') format('truetype');
+    font-weight: 200;
+}
+
+@font-face {
+    font-family: 'HarmonyOS_Sans_Condensed';
+    src: url('../font/HarmonyOS_Sans_Condensed_400.ttf') format('truetype');
+    font-weight: 300;
+}
+
+@font-face {
+    font-family: 'HarmonyOS_Sans_Condensed';
+    src: url('../font/HarmonyOS_Sans_Condensed_400.ttf') format('truetype');
+    font-weight: 400;
+}
+
+@font-face {
+    font-family: 'HarmonyOS_Sans_Condensed';
+    src: url('../font/HarmonyOS_Sans_Condensed_500.ttf') format('truetype');
+    font-weight: 500;
+}
+
+@font-face {
+    font-family: 'HarmonyOS_Sans_Condensed';
+    src: url('../font/HarmonyOS_Sans_Condensed_500.ttf') format('truetype');
+    font-weight: 600;
+}
+
+@font-face {
+    font-family: 'HarmonyOS_Sans_Condensed';
+    src: url('../font/HarmonyOS_Sans_Condensed_700.ttf') format('truetype');
+    font-weight: 700;
+}
+
+@font-face {
+    font-family: 'HarmonyOS_Sans_Condensed';
+    src: url('../font/HarmonyOS_Sans_Condensed_700.ttf') format('truetype');
+    font-weight: 800;
+}
+
+@font-face {
+    font-family: 'HarmonyOS_Sans_Condensed';
+    src: url('../font/HarmonyOS_Sans_Condensed_900.ttf') format('truetype');
+    font-weight: 900;
+}
+
+
+html {
+    /** 1rem = 1mm **/
+    font-size: 1mm;
+    font-family: 'MiSansVF';
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    background-color: #EEE;
+    font-size: 3.7038rem;
+}
+
+table {
+    border-collapse: collapse;
+    border-bottom: 1px solid;
+    border-right: 1px solid;
+}
+
+th,
+td {
+    border-top: 1px solid;
+    border-left: 1px solid;
+}
+
+@media screen {
+
+    .print-only {
+        display: none;
+    }
+
+    .print-page {
+        border-radius: 5rem;
+        margin-bottom: 5rem;
+    }
+}
+
+@media print {
+
+    .no-print {
+        display: none;
+    }
+
+    .print-page {
+        page-break-after: always;
+    }
+}
+
+@media print {
+    body {
+        background-color: #FFF;
+    }
+}
+
+.print-page {
+    margin-left: auto;
+    margin-right: auto;
+    background-color: #FFF;
+    overflow: hidden;
+}
+
+.compact {
+    font-family: 'HarmonyOS_Sans_Condensed', 'MiSansVF';
+}
