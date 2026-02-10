@@ -76,12 +76,17 @@ var resetBr = () => {
     const barcodeDivs = document.querySelectorAll('.br');// 方式2：div
     barcodeDivs.forEach(div => {
         const brText = div.getAttribute('data-value');
-        div.innerHTML = '<svg></svg>';
+        div.innerHTML = '<div style="margin:auto"><svg></svg></div>';
         const svg = div.querySelector('svg');
-        var barWidth = div.clientWidth / brText.length / 11 - 0.1;// 估算二维码单列宽
+        let barWidth = div.getAttribute('data-width');
+        if (!barWidth) {
+            barWidth = div.clientWidth / brText.length / 11 + 0.5;// 估算二维码单列宽
+        }
+        let dt = 0.1;
         if (barWidth > 2) {
             barWidth = 2;// 最大是2，防止过宽
         }
+        let i = 0;
         do {
             JsBarcode(svg, brText, {
                 width: barWidth,
@@ -89,8 +94,17 @@ var resetBr = () => {
                 displayValue: false,
                 margin: 0
             });
-            barWidth = barWidth - 0.2;
-        } while (svg.getBBox().width > div.clientWidth && barWidth > 0);
+            barWidth = barWidth - dt;
+            i++;
+            if (i > 1) {
+                console.error('条形码调整适配' + i + '次', barWidth, brText, div.clientWidth, dt);
+            }
+        } while (svg.getBBox().width > div.clientWidth && barWidth > dt);
+        const innerDiv = div.querySelector('div');
+        if (svg.getBBox().width < div.clientWidth) {
+            const marginLeft = (div.clientWidth - svg.getBBox().width) / 2;
+            innerDiv.style.marginLeft = marginLeft + 'px';
+        }
     });
 };
 
