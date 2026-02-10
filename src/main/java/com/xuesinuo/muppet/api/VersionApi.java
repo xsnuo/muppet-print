@@ -32,7 +32,7 @@ public class VersionApi {
         webClient.get(443, "www.xuesinuo.com", "/muppet-print/version").ssl(true).send()
                 .onSuccess(resp -> {
                     if (Np.i(resp.bodyAsString()).notEq(VERSION)) {
-                        UiStarter.error("new version: https://github.com/xue-da-nuo/muppet-print/releases");
+                        UiStarter.error("new version: https://github.com/xsnuo/muppet-print/releases");
                     }
                 });
     }
