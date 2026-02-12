@@ -1,5 +1,8 @@
 package com.xuesinuo.muppet.api;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
@@ -30,6 +33,7 @@ public class PrinterApi {
     public void start() {
         getAllPrinters();
         print();
+        printPDF();
     }
 
     /** 获取所有打印机信息 */
@@ -80,6 +84,31 @@ public class PrinterApi {
             }).onSuccess(r -> http.response().write(ApiResult.ok()))
                     .onFailure(error -> http.fail(error))
                     .onComplete(r -> http.next());
+        });
+    }
+
+    /** 打印PDF文件 */
+    private void printPDF() {
+        router.route("/api/printPDF").handler(http -> {
+            // 获取类似SpringMvc中MutipartFile的参数
+            http.request().setExpectMultipart(true);
+            http.request().endHandler(v -> {
+                String printerNameOrId = http.request().getFormAttribute("printerNameOrId");
+                for (io.vertx.ext.web.FileUpload fileUpload : http.fileUploads()) {
+                    String tempFilePath = fileUpload.uploadedFileName();
+                    // 读取文件内容
+                    try {
+                        byte[] pdfData = Files.readAllBytes(Path.of(tempFilePath));
+                        if (pdfData == null || printerNameOrId == null || printerNameOrId.isBlank()) {
+                            throw new ParamException("must provide: pdf file and printerNameOrId");
+                        }
+                        PrinterUtil.printPdf(pdfData, printerNameOrId);
+                    } catch (IOException e) {
+                        throw new RuntimeException("/api/printPDF读取PDF文件失败", e);
+                    }
+                }
+                http.response().write(ApiResult.ok());
+            });
         });
     }
 }

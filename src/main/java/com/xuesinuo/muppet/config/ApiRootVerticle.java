@@ -9,7 +9,6 @@ import com.xuesinuo.muppet.UiStarter;
 import com.xuesinuo.muppet.api.VersionApi;
 import com.xuesinuo.muppet.config.exceptions.ParamException;
 import com.xuesinuo.muppet.config.exceptions.ServiceException;
-import com.xuesinuo.xtool.Np;
 
 import io.vertx.core.json.Json;
 import io.vertx.ext.web.Router;

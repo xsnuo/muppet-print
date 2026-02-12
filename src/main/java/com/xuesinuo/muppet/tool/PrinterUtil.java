@@ -84,70 +84,90 @@ public class PrinterUtil {
      * @param waitJsReady     是否等待 JS 设置 window.printReady 为 true 再打印
      * @return 打印是否成功
      */
-    public synchronized static void printHtml(
+    public static void printHtml(
             String html,
             Map<String, String> imports,
             String printerNameOrId,
             double pageWidthMm,
             double pageHeightMm,
             Boolean waitJsReady) {
+        synchronized (printerNameOrId.intern()) {
+            Path tempDir = null;
+            try {
+                // 1. 准备工作目录和 HTML 文件
+                tempDir = Files.createTempDirectory("print_");
+                Path htmlFile = tempDir.resolve("index.html");
+                Files.writeString(htmlFile, html, StandardCharsets.UTF_8);
+                if (imports != null) {
+                    for (Map.Entry<String, String> importEntry : imports.entrySet()) {
+                        Path importPath = tempDir.resolve(importEntry.getKey());
+                        Files.writeString(importPath, importEntry.getValue(), StandardCharsets.UTF_8);
+                    }
+                }
 
-        Path tempDir = null;
-        try {
-            // 1. 准备工作目录和 HTML 文件
-            tempDir = Files.createTempDirectory("print_");
-            Path htmlFile = tempDir.resolve("index.html");
-            Files.writeString(htmlFile, html, StandardCharsets.UTF_8);
-            if (imports != null) {
-                for (Map.Entry<String, String> importEntry : imports.entrySet()) {
-                    Path importPath = tempDir.resolve(importEntry.getKey());
-                    Files.writeString(importPath, importEntry.getValue(), StandardCharsets.UTF_8);
+                // 2. 复制资源文件到临时目录
+                File importFiles = new File("src/main/resources/imports");// 开发环境路径
+                if (!importFiles.exists() || !importFiles.isDirectory()) {
+                    String os = System.getProperty("os.name").toLowerCase();
+                    if (os.contains("win")) {
+                        importFiles = new File("app/classes/imports");// Windows安装路径
+                    } else if (os.contains("mac")) {
+                        importFiles = new File("/Applications/MuppetPrint.app/Contents/app/classes/imports");// MacOS安装路径
+                    }
+                }
+                if (importFiles.exists() && importFiles.isDirectory()) {
+                    Path importRoot = importFiles.toPath();
+                    copyDirWithStructure(importRoot, tempDir, importRoot);
+                } else {
+                    UiStarter.error("imports?" + new File(".").getAbsolutePath());
+                }
+
+                // 3. 确定打印机名称
+                String printerName = printerNameOrId;
+                if (printerName == null || printerName.isBlank()) {
+                    PrintService defaultService = PrintServiceLookup.lookupDefaultPrintService();
+                    if (defaultService == null) {
+                        throw new IllegalStateException("No default printer found");
+                    }
+                    printerName = defaultService.getName();
+                }
+
+                log.info("Target printer: {}", printerName);
+                log.info("Printing HTML with Chromium to printer: {}", printerName);
+
+                // 4. 使用 Playwright 通过 CDP 协议直接打印
+                printWithChromeCDP(htmlFile, printerName, pageWidthMm, pageHeightMm, tempDir, waitJsReady);
+            } catch (Exception e) {
+                if (e instanceof java.lang.IllegalStateException && e.getMessage().contains("Printer not found")) {
+                    throw new ServiceException(e.getMessage());
+                }
+                throw new RuntimeException(e);
+            } finally {
+                if (tempDir != null) {
+                    log.info("临时文件在: {}", tempDir.toAbsolutePath());
+                    cleanupDir(tempDir);
+                    log.info("临时文件已清理: {}", tempDir.toAbsolutePath());
                 }
             }
+        }
+    }
 
-            // 2. 复制资源文件到临时目录
-            File importFiles = new File("src/main/resources/imports");// 开发环境路径
-            if (!importFiles.exists() || !importFiles.isDirectory()) {
-                String os = System.getProperty("os.name").toLowerCase();
-                if (os.contains("win")) {
-                    importFiles = new File("app/classes/imports");// Windows安装路径
-                } else if (os.contains("mac")) {
-                    importFiles = new File("/Applications/MuppetPrint.app/Contents/app/classes/imports");// MacOS安装路径
-                }
+    /**
+     * 打印PDF（二进制文件）
+     * 
+     * @param pdfData         PDF文件的字节数组
+     * @param printerNameOrId 打印机名称或ID
+     */
+    public static void printPdf(byte[] pdfData, String printerName) {
+        synchronized (printerName.intern()) {
+            // 查找打印机
+            PrintService targetPrinter = findPrinter(printerName);
+            if (targetPrinter == null) {
+                throw new IllegalStateException("Printer not found: " + printerName);
             }
-            if (importFiles.exists() && importFiles.isDirectory()) {
-                Path importRoot = importFiles.toPath();
-                copyDirWithStructure(importRoot, tempDir, importRoot);
-            } else {
-                UiStarter.error("imports?" + new File(".").getAbsolutePath());
-            }
-
-            // 3. 确定打印机名称
-            String printerName = printerNameOrId;
-            if (printerName == null || printerName.isBlank()) {
-                PrintService defaultService = PrintServiceLookup.lookupDefaultPrintService();
-                if (defaultService == null) {
-                    throw new IllegalStateException("No default printer found");
-                }
-                printerName = defaultService.getName();
-            }
-
-            log.info("Target printer: {}", printerName);
-            log.info("Printing HTML with Chromium to printer: {}", printerName);
-
-            // 4. 使用 Playwright 通过 CDP 协议直接打印
-            printWithChromeCDP(htmlFile, printerName, pageWidthMm, pageHeightMm, tempDir, waitJsReady);
-        } catch (Exception e) {
-            if (e instanceof java.lang.IllegalStateException && e.getMessage().contains("Printer not found")) {
-                throw new ServiceException(e.getMessage());
-            }
-            throw new RuntimeException(e);
-        } finally {
-            if (tempDir != null) {
-                log.info("临时文件在: {}", tempDir.toAbsolutePath());
-                cleanupDir(tempDir);
-                log.info("临时文件已清理: {}", tempDir.toAbsolutePath());
-            }
+            log.info("Sending PDF to printer: {}", targetPrinter.getName());
+            // 使用 Java Print Service 直接打印 PDF 数据
+            printPdfData(pdfData, targetPrinter);
         }
     }
 
@@ -176,19 +196,14 @@ public class PrinterUtil {
             Browser browser = playwright.chromium().launch(new BrowserType.LaunchOptions()
                     .setHeadless(true));
             Page page = browser.newPage();
-
             // 导航到 HTML 文件
             String fileUrl = "file://" + htmlFile.toAbsolutePath().toString();
             page.navigate(fileUrl);
-
             page.waitForLoadState();
-
             log.info("Page loaded, generating PDF for printing...");
-
             if (waitJsReady != null && waitJsReady) {
                 page.waitForFunction("() => window.printReady === true");
             }
-
             // 使用 Playwright 生成 PDF 字节数组
             Page.PdfOptions options = new Page.PdfOptions()
                     .setWidth(mm(pageWidthMm))
@@ -202,25 +217,12 @@ public class PrinterUtil {
 
             byte[] pdfData = page.pdf(options);
             log.info("PDF generated by Playwright, size: {} bytes", pdfData.length);
-
             // 保存PDF文件用于调试
             Path pdfFile = tempDir.resolve("print_output.pdf");
             Files.write(pdfFile, pdfData);
             log.info("===== PDF文件已保存: {} =====", pdfFile.toAbsolutePath());
-
             browser.close();
-
-            // 查找打印机
-            PrintService targetPrinter = findPrinter(printerName);
-            if (targetPrinter == null) {
-                throw new IllegalStateException("Printer not found: " + printerName);
-            }
-
-            log.info("Sending PDF to printer: {}", targetPrinter.getName());
-
-            // 使用 Java Print Service 直接打印 PDF 数据
-            printPdfData(pdfData, targetPrinter);
-
+            printPdf(pdfData, printerName);
         } catch (Exception e) {
             throw e;
         }
