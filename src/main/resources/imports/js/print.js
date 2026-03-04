@@ -65,7 +65,7 @@ var resetQr = () => {
             text: qrText,
             width: div.clientWidth,
             height: div.clientHeight,
-            correctLevel: QRCode.CorrectLevel.H
+            correctLevel: QRCode.CorrectLevel.L
         });
     });
 };
