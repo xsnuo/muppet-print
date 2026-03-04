@@ -15,6 +15,7 @@ import javax.print.*;
 import java.awt.print.PrinterJob;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -101,22 +102,16 @@ public class PrinterUtil {
                 if (imports != null) {
                     for (Map.Entry<String, String> importEntry : imports.entrySet()) {
                         Path importPath = tempDir.resolve(importEntry.getKey());
+                        if (importPath.getParent() != null) {
+                            Files.createDirectories(importPath.getParent());
+                        }
                         Files.writeString(importPath, importEntry.getValue(), StandardCharsets.UTF_8);
                     }
                 }
 
                 // 2. 复制资源文件到临时目录
-                File importFiles = new File("src/main/resources/imports");// 开发环境路径
-                if (!importFiles.exists() || !importFiles.isDirectory()) {
-                    String os = System.getProperty("os.name").toLowerCase();
-                    if (os.contains("win")) {
-                        importFiles = new File("app/classes/imports");// Windows安装路径
-                    } else if (os.contains("mac")) {
-                        importFiles = new File("/Applications/MuppetPrint.app/Contents/app/classes/imports");// MacOS安装路径
-                    }
-                }
-                if (importFiles.exists() && importFiles.isDirectory()) {
-                    Path importRoot = importFiles.toPath();
+                Path importRoot = resolveImportsDirectory();
+                if (importRoot != null) {
                     copyDirWithStructure(importRoot, tempDir, importRoot);
                 } else {
                     UiStarter.error("imports?" + new File(".").getAbsolutePath());
@@ -314,5 +309,53 @@ public class PrinterUtil {
             });
             Files.deleteIfExists(dir);
         } catch (IOException ignored) {}
+    }
+
+    private static Path resolveImportsDirectory() {
+        List<Path> candidates = new ArrayList<>();
+
+        Path userDir = Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize();
+        candidates.add(userDir.resolve("src/main/resources/imports"));
+        candidates.add(userDir.resolve("app/classes/imports"));
+
+        String os = System.getProperty("os.name").toLowerCase();
+        if (os.contains("mac")) {
+            candidates.add(Path.of("/Applications/MuppetPrint.app/Contents/app/classes/imports"));
+        }
+
+        try {
+            URI codeSourceUri = PrinterUtil.class.getProtectionDomain().getCodeSource().getLocation().toURI();
+            Path codeSourcePath = Path.of(codeSourceUri).toAbsolutePath().normalize();
+
+            if (Files.isDirectory(codeSourcePath)) {
+                candidates.add(codeSourcePath.resolve("imports"));
+
+                Path parent = codeSourcePath.getParent();
+                if (parent != null) {
+                    candidates.add(parent.resolve("classes/imports"));
+                    candidates.add(parent.resolve("imports"));
+                }
+            } else {
+                Path parent = codeSourcePath.getParent();
+                if (parent != null) {
+                    candidates.add(parent.resolve("classes/imports"));
+                    candidates.add(parent.resolve("imports"));
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to resolve code source path for imports directory", e);
+        }
+
+        for (Path candidate : candidates) {
+            if (candidate != null && Files.isDirectory(candidate)) {
+                log.debug("Resolved imports directory: {}", candidate);
+                return candidate;
+            }
+        }
+
+        log.error("Imports directory not found. user.dir={}, candidates={}",
+                userDir,
+                candidates.stream().map(Path::toString).toList());
+        return null;
     }
 }
