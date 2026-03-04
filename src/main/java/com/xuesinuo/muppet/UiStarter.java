@@ -22,6 +22,7 @@ public class UiStarter {
     public static volatile ApplicationContext springContext;
 
     public static final String port = "58080";
+    public static String errorMessage = "";
 
     private static final Frame frame = new Frame();
     private static final Label portTitelLabel = new Label("Web Port:");
@@ -184,7 +185,7 @@ public class UiStarter {
             try (Playwright playwright = Playwright.create()) {
                 messageLabel.setText("Update completed.");
                 startSpringApplication();
-                messageLabel.setText("");
+                messageLabel.setText(errorMessage);
             } catch (Exception e) {
                 e.printStackTrace();
                 messageLabel.setText("Setup failed!" + e.getMessage());
@@ -388,7 +389,7 @@ public class UiStarter {
                 @Override
                 public void run() {
                     if (msg.equals(messageLabel.getText())) {
-                        messageLabel.setText("");
+                        messageLabel.setText(errorMessage);
                     }
                 }
             }, 5000);
