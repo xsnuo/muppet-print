@@ -4,24 +4,27 @@ import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
-import com.xuesinuo.muppet.UiStarter;
 import com.xuesinuo.muppet.config.exceptions.ServiceException;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
 import javax.print.*;
 import java.awt.print.PrinterJob;
-import java.io.File;
 import java.io.IOException;
-import java.net.URI;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 打印机工具类
@@ -92,11 +95,12 @@ public class PrinterUtil {
             double pageWidthMm,
             double pageHeightMm,
             Boolean waitJsReady) {
-        synchronized (printerNameOrId.intern()) {
+        String lockKey = printerNameOrId == null ? "__default_printer__" : printerNameOrId;
+        synchronized (lockKey.intern()) {
             Path tempDir = null;
             try {
                 // 1. 准备工作目录和 HTML 文件
-                tempDir = Files.createTempDirectory("print_");
+                tempDir = Files.createTempDirectory("muppetprint_");
                 Path htmlFile = tempDir.resolve("index.html");
                 Files.writeString(htmlFile, html, StandardCharsets.UTF_8);
                 if (imports != null) {
@@ -110,11 +114,9 @@ public class PrinterUtil {
                 }
 
                 // 2. 复制资源文件到临时目录
-                Path importRoot = resolveImportsDirectory();
-                if (importRoot != null) {
-                    copyDirWithStructure(importRoot, tempDir, importRoot);
-                } else {
-                    UiStarter.error("imports?" + new File(".").getAbsolutePath());
+                boolean copied = copyImportsToTempDirectory(tempDir);
+                if (!copied) {
+                    throw new IllegalStateException("imports directory not found or empty; cannot render html resources");
                 }
 
                 // 3. 确定打印机名称
@@ -140,7 +142,7 @@ public class PrinterUtil {
             } finally {
                 if (tempDir != null) {
                     log.info("临时文件在: {}", tempDir.toAbsolutePath());
-                    cleanupDir(tempDir);
+                    // cleanupDir(tempDir);
                     log.info("临时文件已清理: {}", tempDir.toAbsolutePath());
                 }
             }
@@ -166,19 +168,81 @@ public class PrinterUtil {
         }
     }
 
-    /** 递归复制目录及其子目录下所有文件，保留目录结构 */
-    private static void copyDirWithStructure(Path sourceDir, Path targetDir, Path rootDir) throws IOException {
-        if (Files.isDirectory(sourceDir)) {
-            try (var stream = Files.list(sourceDir)) {
-                for (Path entry : (Iterable<Path>) stream::iterator) {
-                    copyDirWithStructure(entry, targetDir, rootDir);
+    private static boolean copyImportsToTempDirectory(Path tempDir) {
+        try {
+            PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver(
+                    PrinterUtil.class.getClassLoader());
+            Resource[] resources = resolver.getResources("classpath*:imports/**");
+            Set<String> copiedRelativePaths = new HashSet<>();
+
+            for (Resource resource : resources) {
+                if (resource == null || !resource.isReadable()) {
+                    continue;
+                }
+
+                String relative = resolveRelativeImportsPath(resource);
+                if (relative == null || relative.isBlank()) {
+                    continue;
+                }
+
+                if (!copiedRelativePaths.add(relative)) {
+                    continue;
+                }
+
+                Path target = tempDir.resolve(relative).normalize();
+                if (!target.startsWith(tempDir)) {
+                    continue;
+                }
+
+                Files.createDirectories(target.getParent());
+                try (var in = resource.getInputStream()) {
+                    Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
                 }
             }
-        } else {
-            Path relative = rootDir.relativize(sourceDir);
-            Path destPath = targetDir.resolve(relative);
-            Files.createDirectories(destPath.getParent());
-            Files.copy(sourceDir, destPath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+
+            if (!copiedRelativePaths.isEmpty()) {
+                log.info("Copied {} imports file(s) from classpath", copiedRelativePaths.size());
+                return true;
+            }
+
+            log.warn("No readable resources found under classpath*:imports/**");
+            return false;
+        } catch (Exception e) {
+            log.warn("Failed to copy imports from classpath source", e);
+            return false;
+        }
+    }
+
+    private static String resolveRelativeImportsPath(Resource resource) {
+        try {
+            String location = resource.getURL().toExternalForm();
+            int marker = location.lastIndexOf("imports/");
+            if (marker < 0) {
+                return null;
+            }
+
+            String relative = location.substring(marker + "imports/".length());
+            int queryIndex = relative.indexOf('?');
+            if (queryIndex >= 0) {
+                relative = relative.substring(0, queryIndex);
+            }
+            int fragmentIndex = relative.indexOf('#');
+            if (fragmentIndex >= 0) {
+                relative = relative.substring(0, fragmentIndex);
+            }
+
+            relative = URLDecoder.decode(relative, StandardCharsets.UTF_8);
+            relative = relative.replace('\\', '/');
+            while (relative.startsWith("/")) {
+                relative = relative.substring(1);
+            }
+
+            if (relative.isBlank() || relative.endsWith("/")) {
+                return null;
+            }
+            return relative;
+        } catch (Exception e) {
+            return null;
         }
     }
 
@@ -297,6 +361,7 @@ public class PrinterUtil {
     /**
      * 清理临时目录
      */
+    @SuppressWarnings("unused")
     private static void cleanupDir(Path dir) {
         try {
             if (dir == null)
@@ -311,51 +376,4 @@ public class PrinterUtil {
         } catch (IOException ignored) {}
     }
 
-    private static Path resolveImportsDirectory() {
-        List<Path> candidates = new ArrayList<>();
-
-        Path userDir = Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize();
-        candidates.add(userDir.resolve("src/main/resources/imports"));
-        candidates.add(userDir.resolve("app/classes/imports"));
-
-        String os = System.getProperty("os.name").toLowerCase();
-        if (os.contains("mac")) {
-            candidates.add(Path.of("/Applications/MuppetPrint.app/Contents/app/classes/imports"));
-        }
-
-        try {
-            URI codeSourceUri = PrinterUtil.class.getProtectionDomain().getCodeSource().getLocation().toURI();
-            Path codeSourcePath = Path.of(codeSourceUri).toAbsolutePath().normalize();
-
-            if (Files.isDirectory(codeSourcePath)) {
-                candidates.add(codeSourcePath.resolve("imports"));
-
-                Path parent = codeSourcePath.getParent();
-                if (parent != null) {
-                    candidates.add(parent.resolve("classes/imports"));
-                    candidates.add(parent.resolve("imports"));
-                }
-            } else {
-                Path parent = codeSourcePath.getParent();
-                if (parent != null) {
-                    candidates.add(parent.resolve("classes/imports"));
-                    candidates.add(parent.resolve("imports"));
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Failed to resolve code source path for imports directory", e);
-        }
-
-        for (Path candidate : candidates) {
-            if (candidate != null && Files.isDirectory(candidate)) {
-                log.debug("Resolved imports directory: {}", candidate);
-                return candidate;
-            }
-        }
-
-        log.error("Imports directory not found. user.dir={}, candidates={}",
-                userDir,
-                candidates.stream().map(Path::toString).toList());
-        return null;
-    }
 }
