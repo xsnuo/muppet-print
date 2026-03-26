@@ -94,20 +94,28 @@ public class PrinterApi {
             http.request().setExpectMultipart(true);
             http.request().endHandler(v -> {
                 String printerNameOrId = http.request().getFormAttribute("printerNameOrId");
+                if (http.fileUploads().isEmpty()) {
+                    throw new ParamException("must provide: pdf file and printerNameOrId");
+                }
+                if (printerNameOrId == null || printerNameOrId.isBlank()) {
+                    throw new ParamException("must provide: pdf file and printerNameOrId");
+                }
                 for (io.vertx.ext.web.FileUpload fileUpload : http.fileUploads()) {
                     String tempFilePath = fileUpload.uploadedFileName();
                     // 读取文件内容
                     try {
                         byte[] pdfData = Files.readAllBytes(Path.of(tempFilePath));
-                        if (pdfData == null || printerNameOrId == null || printerNameOrId.isBlank()) {
+                        if (pdfData == null || pdfData.length == 0) {
                             throw new ParamException("must provide: pdf file and printerNameOrId");
                         }
                         PrinterUtil.printPdf(pdfData, printerNameOrId);
                     } catch (IOException e) {
-                        throw new RuntimeException("/api/printPDF读取PDF文件失败", e);
+                        http.fail(new RuntimeException("/api/printPDF读取PDF文件失败", e));
+                        return;
                     }
                 }
                 http.response().write(ApiResult.ok());
+                http.next();
             });
         });
     }

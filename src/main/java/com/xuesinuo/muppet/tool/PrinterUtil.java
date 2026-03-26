@@ -114,10 +114,7 @@ public class PrinterUtil {
                 }
 
                 // 2. 复制资源文件到临时目录
-                boolean copied = copyImportsToTempDirectory(tempDir);
-                if (!copied) {
-                    throw new IllegalStateException("imports directory not found or empty; cannot render html resources");
-                }
+                copyImportsToTempDirectory(tempDir);
 
                 // 3. 确定打印机名称
                 String printerName = printerNameOrId;
@@ -135,14 +132,16 @@ public class PrinterUtil {
                 // 4. 使用 Playwright 通过 CDP 协议直接打印
                 printWithChromeCDP(htmlFile, printerName, pageWidthMm, pageHeightMm, tempDir, waitJsReady);
             } catch (Exception e) {
-                if (e instanceof java.lang.IllegalStateException && e.getMessage().contains("Printer not found")) {
+                if (e instanceof java.lang.IllegalStateException
+                        && e.getMessage() != null
+                        && (e.getMessage().contains("Printer not found") || e.getMessage().contains("No default printer found"))) {
                     throw new ServiceException(e.getMessage());
                 }
                 throw new RuntimeException(e);
             } finally {
                 if (tempDir != null) {
                     log.info("临时文件在: {}", tempDir.toAbsolutePath());
-                    // cleanupDir(tempDir);
+                    cleanupDir(tempDir);
                     log.info("临时文件已清理: {}", tempDir.toAbsolutePath());
                 }
             }
@@ -156,19 +155,26 @@ public class PrinterUtil {
      * @param printerNameOrId 打印机名称或ID
      */
     public static void printPdf(byte[] pdfData, String printerName) {
-        synchronized (printerName.intern()) {
+        String lockKey = printerName == null || printerName.isBlank() ? "__default_printer__" : printerName;
+        synchronized (lockKey.intern()) {
             // 查找打印机
             PrintService targetPrinter = findPrinter(printerName);
             if (targetPrinter == null) {
+                if (printerName == null || printerName.isBlank()) {
+                    throw new IllegalStateException("No default printer found");
+                }
                 throw new IllegalStateException("Printer not found: " + printerName);
             }
             log.info("Sending PDF to printer: {}", targetPrinter.getName());
             // 使用 Java Print Service 直接打印 PDF 数据
-            printPdfData(pdfData, targetPrinter);
+            boolean success = printPdfData(pdfData, targetPrinter);
+            if (!success) {
+                throw new ServiceException("print pdf failed: " + targetPrinter.getName());
+            }
         }
     }
 
-    private static boolean copyImportsToTempDirectory(Path tempDir) {
+    private static void copyImportsToTempDirectory(Path tempDir) {
         try {
             PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver(
                     PrinterUtil.class.getClassLoader());
@@ -202,14 +208,12 @@ public class PrinterUtil {
 
             if (!copiedRelativePaths.isEmpty()) {
                 log.info("Copied {} imports file(s) from classpath", copiedRelativePaths.size());
-                return true;
+                return;
             }
 
             log.warn("No readable resources found under classpath*:imports/**");
-            return false;
         } catch (Exception e) {
             log.warn("Failed to copy imports from classpath source", e);
-            return false;
         }
     }
 
@@ -340,6 +344,25 @@ public class PrinterUtil {
         }
     }
 
+    private static void cleanupDir(Path dir) {
+        try {
+            if (dir == null || !Files.exists(dir)) {
+                return;
+            }
+            Files.walk(dir)
+                    .sorted((left, right) -> right.getNameCount() - left.getNameCount())
+                    .forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (IOException e) {
+                            log.warn("清理临时文件失败: {}", path, e);
+                        }
+                    });
+        } catch (IOException e) {
+            log.warn("清理临时目录失败: {}", dir, e);
+        }
+    }
+
     /**
      * 将毫米转换为 Playwright 的尺寸字符串
      */
@@ -356,24 +379,6 @@ public class PrinterUtil {
             s = s.replaceAll("0+$", "").replaceAll("\\.$", "");
         }
         return s;
-    }
-
-    /**
-     * 清理临时目录
-     */
-    @SuppressWarnings("unused")
-    private static void cleanupDir(Path dir) {
-        try {
-            if (dir == null)
-                return;
-            // 先删除目录中的文件，再删除目录本身
-            Files.list(dir).forEach(p -> {
-                try {
-                    Files.deleteIfExists(p);
-                } catch (IOException ignored) {}
-            });
-            Files.deleteIfExists(dir);
-        } catch (IOException ignored) {}
     }
 
 }

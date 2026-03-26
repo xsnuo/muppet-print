@@ -1,13 +1,25 @@
 package com.xuesinuo.muppet;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.awt.*;
 import javax.imageio.ImageIO;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.lang.ProcessHandle.Info;
+import java.net.BindException;
+import java.nio.file.Path;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.stream.Stream;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ApplicationContext;
@@ -17,6 +29,11 @@ import com.xuesinuo.muppet.vertx.WebVerticle;
 
 @SpringBootApplication
 public class UiStarter {
+
+    private static final int SINGLE_INSTANCE_PORT = 58081;
+    private static final String SINGLE_INSTANCE_TOKEN = "MUPPET_PRINT_SHOW";
+    private static final String APP_PROCESS_KEYWORD = "muppet-print";
+    private static final String APP_MAIN_CLASS = "com.xuesinuo.muppet.UiStarter";
 
     public static volatile int appState = 0; // 0:停止 1:正在启动 2:运行 3:正在关闭
     public static volatile ApplicationContext springContext;
@@ -37,8 +54,15 @@ public class UiStarter {
     // 系统托盘相关
     private static TrayIcon trayIcon;
     private static SystemTray systemTray;
+    private static ServerSocket singleInstanceServer;
 
     public static void main(String[] args) {
+        if (hasRunningInstance()) {
+            showAlreadyRunningDialog();
+            notifyRunningInstance();
+            return;
+        }
+
         frame.setTitle("Muppet Printer");
         // 设置自定义图标，假设图标文件为 app.png 放在 resources 目录下
         java.awt.Image icon = null;
@@ -178,6 +202,8 @@ public class UiStarter {
         frame.add(messageLabel);
 
         frame.setVisible(true);
+
+    startSingleInstanceListener();
 
         // 检查Playwright插件
         messageLabel.setText("Loading update. Please wait...");
@@ -361,6 +387,128 @@ public class UiStarter {
         messageLabel.setText(msg);
     }
 
+    private static boolean hasRunningInstance() {
+        long currentPid = ProcessHandle.current().pid();
+        try (Stream<ProcessHandle> processes = ProcessHandle.allProcesses()) {
+            return processes
+                    .filter(ProcessHandle::isAlive)
+                    .filter(process -> process.pid() != currentPid)
+                    .anyMatch(UiStarter::isMuppetProcess);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static boolean isMuppetProcess(ProcessHandle processHandle) {
+        Info info = processHandle.info();
+        String command = info.command().orElse("").toLowerCase();
+        String commandLine = info.commandLine().orElse("").toLowerCase();
+        String arguments = String.join(" ", info.arguments().orElse(new String[0])).toLowerCase();
+
+        if (containsAppSignature(commandLine) || containsAppSignature(arguments)) {
+            return true;
+        }
+
+        if (containsAppSignature(command)) {
+            return true;
+        }
+
+        if (!command.isBlank()) {
+            try {
+                String executableName = Path.of(command).getFileName().toString().toLowerCase();
+                return containsAppSignature(executableName);
+            } catch (Exception ignored) {
+            }
+        }
+        return false;
+    }
+
+    private static boolean containsAppSignature(String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        String normalized = value.toLowerCase();
+        return normalized.contains(APP_MAIN_CLASS.toLowerCase()) || normalized.contains(APP_PROCESS_KEYWORD);
+    }
+
+    private static void startSingleInstanceListener() {
+        try {
+            singleInstanceServer = new ServerSocket(SINGLE_INSTANCE_PORT, 50, InetAddress.getLoopbackAddress());
+            singleInstanceServer.setReuseAddress(true);
+        } catch (BindException bindException) {
+            return;
+        } catch (IOException ioException) {
+            return;
+        }
+
+        Thread listenerThread = new Thread(() -> {
+            while (singleInstanceServer != null && !singleInstanceServer.isClosed()) {
+                try (Socket socket = singleInstanceServer.accept();
+                        BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                        PrintWriter writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()), true)) {
+                    String command = reader.readLine();
+                    if (SINGLE_INSTANCE_TOKEN.equals(command)) {
+                        EventQueue.invokeLater(UiStarter::bringToFront);
+                        writer.println("OK");
+                    }
+                } catch (IOException e) {
+                    if (singleInstanceServer != null && !singleInstanceServer.isClosed()) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }, "muppet-single-instance-listener");
+        listenerThread.setDaemon(true);
+        listenerThread.start();
+    }
+
+    private static void notifyRunningInstance() {
+        try (Socket socket = new Socket(InetAddress.getLoopbackAddress(), SINGLE_INSTANCE_PORT);
+                PrintWriter writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()), true)) {
+            writer.println(SINGLE_INSTANCE_TOKEN);
+        } catch (IOException ignored) {
+        }
+        System.exit(0);
+    }
+
+    private static void showAlreadyRunningDialog() {
+        try {
+            Dialog dialog = new Dialog((Frame) null, "Muppet Print", true);
+            dialog.setLayout(new BorderLayout());
+            Label message = new Label("Muppet Print is already running.", Label.CENTER);
+            Button confirmButton = new Button("OK");
+            confirmButton.addActionListener(e -> dialog.dispose());
+            Panel buttonPanel = new Panel();
+            buttonPanel.add(confirmButton);
+            dialog.add(message, BorderLayout.CENTER);
+            dialog.add(buttonPanel, BorderLayout.SOUTH);
+            dialog.setSize(320, 140);
+            dialog.setLocationRelativeTo(null);
+            dialog.addWindowListener(new WindowAdapter() {
+                @Override
+                public void windowClosing(WindowEvent e) {
+                    dialog.dispose();
+                }
+            });
+            dialog.setVisible(true);
+        } catch (Exception e) {
+            System.err.println("Muppet Print is already running.");
+        }
+    }
+
+    private static void bringToFront() {
+        if (!frame.isDisplayable()) {
+            return;
+        }
+        frame.setVisible(true);
+        frame.setState(Frame.NORMAL);
+        frame.toFront();
+        frame.requestFocus();
+        if (trayIcon != null) {
+            trayIcon.displayMessage("Muppet Print", "Muppet Print is already running.", TrayIcon.MessageType.INFO);
+        }
+    }
+
     /**
      * 启动Spring服务
      */
@@ -421,8 +569,24 @@ public class UiStarter {
                 statusLabel.setText("Status: Stopped");
                 portLabel.setVisible(false);
                 portTextField.setVisible(true);
+                if (isPortInUseError(ex)) {
+                    error("Web port is already in use. Please change the port.");
+                } else {
+                    error("Startup failed: " + ex.getMessage());
+                }
             }
         }).start();
+    }
+
+    private static boolean isPortInUseError(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current instanceof BindException) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     /**
