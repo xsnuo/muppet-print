@@ -52,6 +52,7 @@ public class UiStarter {
     private static SystemTray systemTray;
     private static FileChannel singleInstanceLockChannel;
     private static FileLock singleInstanceFileLock;
+    private static Image appIcon;
 
     public static void main(String[] args) {
         if (!acquireSingleInstanceLock()) {
@@ -62,14 +63,9 @@ public class UiStarter {
 
         frame.setTitle("Muppet Printer");
         // 设置自定义图标，假设图标文件为 app.png 放在 resources 目录下
-        java.awt.Image icon = null;
-        try (java.io.InputStream iconStream = UiStarter.class.getResourceAsStream("/app.png")) {
-            if (iconStream != null) {
-                icon = ImageIO.read(iconStream);
-                frame.setIconImage(icon);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();// 忽略图标加载失败
+        java.awt.Image icon = getAppIcon();
+        if (icon != null) {
+            frame.setIconImage(icon);
         }
         frame.setSize(0, 0);
         frame.setResizable(false);
@@ -421,9 +417,27 @@ public class UiStarter {
         }
     }
 
+    private static synchronized Image getAppIcon() {
+        if (appIcon != null) {
+            return appIcon;
+        }
+        try (java.io.InputStream iconStream = UiStarter.class.getResourceAsStream("/app.png")) {
+            if (iconStream != null) {
+                appIcon = ImageIO.read(iconStream);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();// 忽略图标加载失败
+        }
+        return appIcon;
+    }
+
     private static void showAlreadyRunningDialog() {
         try {
             Dialog dialog = new Dialog((Frame) null, "Muppet Print", true);
+            Image icon = getAppIcon();
+            if (icon != null) {
+                dialog.setIconImage(icon);
+            }
             dialog.setLayout(new BorderLayout());
             Label message = new Label("Muppet Print is already running.", Label.CENTER);
             Button confirmButton = new Button("OK");
