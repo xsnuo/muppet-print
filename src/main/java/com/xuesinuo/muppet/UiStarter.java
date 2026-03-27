@@ -442,6 +442,15 @@ public class UiStarter {
             Label message = new Label("Muppet Print is already running.", Label.CENTER);
             Button confirmButton = new Button("OK");
             confirmButton.addActionListener(e -> dialog.dispose());
+
+            Font defaultFont = message.getFont();
+            if (defaultFont == null) {
+                defaultFont = dialog.getFont();
+            }
+            int fs = defaultFont == null ? 12 : defaultFont.getSize();
+            int hfs = fs / 2 + fs % 2;
+            confirmButton.setPreferredSize(new Dimension(20 * hfs, 4 * hfs));
+
             Panel buttonPanel = new Panel();
             buttonPanel.add(confirmButton);
             dialog.add(message, BorderLayout.CENTER);
