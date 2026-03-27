@@ -20,7 +20,7 @@ At runtime it is composed of four main layers:
 Responsibilities:
 
 - Create and manage the AWT frame.
-- Enforce single-instance startup using process-signature detection plus a localhost wake-up socket.
+- Enforce single-instance startup using a local file lock under the current user home directory.
 - Initialize tray integration.
 - Manage application start/stop state.
 - Trigger Playwright availability check.
@@ -118,7 +118,9 @@ Responsibilities:
 
 The project is intended to be packaged as a desktop application for Windows, macOS, and Linux. The current repository also builds a Spring Boot JAR, but the operator model clearly assumes a local GUI host with printer access.
 
-The startup path now also enforces a single-instance desktop model by checking other running Muppet Print processes. A later-launched process signals the existing instance to surface its window and then exits.
+The startup path now enforces a single-instance desktop model by acquiring a local file lock before UI initialization. A later-launched process shows an already-running prompt and then exits.
+
+The start-state transition now waits for Vert.x HTTP listen success before marking the UI as ready. If listen fails (for example because the port is occupied), the UI returns to `Stopped` and re-enables the port input.
 
 ## External Dependencies And Integrations
 

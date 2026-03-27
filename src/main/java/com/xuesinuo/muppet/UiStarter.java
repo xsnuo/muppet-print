@@ -1,25 +1,22 @@
 package com.xuesinuo.muppet;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
-import java.net.InetAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.awt.*;
 import javax.imageio.ImageIO;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.lang.ProcessHandle.Info;
 import java.net.BindException;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
+import java.nio.channels.OverlappingFileLockException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.stream.Stream;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ApplicationContext;
@@ -30,10 +27,9 @@ import com.xuesinuo.muppet.vertx.WebVerticle;
 @SpringBootApplication
 public class UiStarter {
 
-    private static final int SINGLE_INSTANCE_PORT = 58081;
-    private static final String SINGLE_INSTANCE_TOKEN = "MUPPET_PRINT_SHOW";
-    private static final String APP_PROCESS_KEYWORD = "muppet-print";
-    private static final String APP_MAIN_CLASS = "com.xuesinuo.muppet.UiStarter";
+    private static final String SINGLE_INSTANCE_LOCK_DIR = ".muppet-print";
+    private static final String SINGLE_INSTANCE_LOCK_FILE = "instance.lock";
+    private static final long WEB_STARTUP_TIMEOUT_MS = 8000;
 
     public static volatile int appState = 0; // 0:停止 1:正在启动 2:运行 3:正在关闭
     public static volatile ApplicationContext springContext;
@@ -54,14 +50,15 @@ public class UiStarter {
     // 系统托盘相关
     private static TrayIcon trayIcon;
     private static SystemTray systemTray;
-    private static ServerSocket singleInstanceServer;
+    private static FileChannel singleInstanceLockChannel;
+    private static FileLock singleInstanceFileLock;
 
     public static void main(String[] args) {
-        if (hasRunningInstance()) {
+        if (!acquireSingleInstanceLock()) {
             showAlreadyRunningDialog();
-            notifyRunningInstance();
             return;
         }
+        Runtime.getRuntime().addShutdownHook(new Thread(UiStarter::releaseSingleInstanceLock));
 
         frame.setTitle("Muppet Printer");
         // 设置自定义图标，假设图标文件为 app.png 放在 resources 目录下
@@ -202,8 +199,6 @@ public class UiStarter {
         frame.add(messageLabel);
 
         frame.setVisible(true);
-
-    startSingleInstanceListener();
 
         // 检查Playwright插件
         messageLabel.setText("Loading update. Please wait...");
@@ -387,88 +382,43 @@ public class UiStarter {
         messageLabel.setText(msg);
     }
 
-    private static boolean hasRunningInstance() {
-        long currentPid = ProcessHandle.current().pid();
-        try (Stream<ProcessHandle> processes = ProcessHandle.allProcesses()) {
-            return processes
-                    .filter(ProcessHandle::isAlive)
-                    .filter(process -> process.pid() != currentPid)
-                    .anyMatch(UiStarter::isMuppetProcess);
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    private static boolean isMuppetProcess(ProcessHandle processHandle) {
-        Info info = processHandle.info();
-        String command = info.command().orElse("").toLowerCase();
-        String commandLine = info.commandLine().orElse("").toLowerCase();
-        String arguments = String.join(" ", info.arguments().orElse(new String[0])).toLowerCase();
-
-        if (containsAppSignature(commandLine) || containsAppSignature(arguments)) {
-            return true;
-        }
-
-        if (containsAppSignature(command)) {
-            return true;
-        }
-
-        if (!command.isBlank()) {
-            try {
-                String executableName = Path.of(command).getFileName().toString().toLowerCase();
-                return containsAppSignature(executableName);
-            } catch (Exception ignored) {
-            }
-        }
-        return false;
-    }
-
-    private static boolean containsAppSignature(String value) {
-        if (value == null || value.isBlank()) {
-            return false;
-        }
-        String normalized = value.toLowerCase();
-        return normalized.contains(APP_MAIN_CLASS.toLowerCase()) || normalized.contains(APP_PROCESS_KEYWORD);
-    }
-
-    private static void startSingleInstanceListener() {
+    private static boolean acquireSingleInstanceLock() {
         try {
-            singleInstanceServer = new ServerSocket(SINGLE_INSTANCE_PORT, 50, InetAddress.getLoopbackAddress());
-            singleInstanceServer.setReuseAddress(true);
-        } catch (BindException bindException) {
-            return;
-        } catch (IOException ioException) {
-            return;
-        }
-
-        Thread listenerThread = new Thread(() -> {
-            while (singleInstanceServer != null && !singleInstanceServer.isClosed()) {
-                try (Socket socket = singleInstanceServer.accept();
-                        BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                        PrintWriter writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()), true)) {
-                    String command = reader.readLine();
-                    if (SINGLE_INSTANCE_TOKEN.equals(command)) {
-                        EventQueue.invokeLater(UiStarter::bringToFront);
-                        writer.println("OK");
-                    }
-                } catch (IOException e) {
-                    if (singleInstanceServer != null && !singleInstanceServer.isClosed()) {
-                        e.printStackTrace();
-                    }
-                }
+            Path lockDir = Paths.get(System.getProperty("user.home"), SINGLE_INSTANCE_LOCK_DIR);
+            Files.createDirectories(lockDir);
+            Path lockPath = lockDir.resolve(SINGLE_INSTANCE_LOCK_FILE);
+            singleInstanceLockChannel = FileChannel.open(lockPath, StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+            singleInstanceFileLock = singleInstanceLockChannel.tryLock();
+            if (singleInstanceFileLock == null) {
+                singleInstanceLockChannel.close();
+                singleInstanceLockChannel = null;
+                return false;
             }
-        }, "muppet-single-instance-listener");
-        listenerThread.setDaemon(true);
-        listenerThread.start();
+            return true;
+        } catch (OverlappingFileLockException e) {
+            return false;
+        } catch (IOException e) {
+            return false;
+        }
     }
 
-    private static void notifyRunningInstance() {
-        try (Socket socket = new Socket(InetAddress.getLoopbackAddress(), SINGLE_INSTANCE_PORT);
-                PrintWriter writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream()), true)) {
-            writer.println(SINGLE_INSTANCE_TOKEN);
-        } catch (IOException ignored) {
+    private static void releaseSingleInstanceLock() {
+        if (singleInstanceFileLock != null) {
+            try {
+                singleInstanceFileLock.release();
+            } catch (IOException ignored) {
+            } finally {
+                singleInstanceFileLock = null;
+            }
         }
-        System.exit(0);
+        if (singleInstanceLockChannel != null) {
+            try {
+                singleInstanceLockChannel.close();
+            } catch (IOException ignored) {
+            } finally {
+                singleInstanceLockChannel = null;
+            }
+        }
     }
 
     private static void showAlreadyRunningDialog() {
@@ -493,19 +443,6 @@ public class UiStarter {
             dialog.setVisible(true);
         } catch (Exception e) {
             System.err.println("Muppet Print is already running.");
-        }
-    }
-
-    private static void bringToFront() {
-        if (!frame.isDisplayable()) {
-            return;
-        }
-        frame.setVisible(true);
-        frame.setState(Frame.NORMAL);
-        frame.toFront();
-        frame.requestFocus();
-        if (trayIcon != null) {
-            trayIcon.displayMessage("Muppet Print", "Muppet Print is already running.", TrayIcon.MessageType.INFO);
         }
     }
 
@@ -560,11 +497,20 @@ public class UiStarter {
         WebVerticle.port = port;
         new Thread(() -> {
             try {
+                WebVerticle.resetStartupSignal();
                 springContext = SpringApplication.run(UiStarter.class, new String[0]);
+                WebVerticle.awaitStartupResult(WEB_STARTUP_TIMEOUT_MS);
                 System.out.println("Startup complete: " + springContext);
                 statusLabel.setText("Status: Ready !");
                 appState = 2;
             } catch (Exception ex) {
+                if (springContext != null) {
+                    try {
+                        SpringApplication.exit(springContext);
+                    } catch (Exception ignored) {
+                    }
+                    springContext = null;
+                }
                 appState = 0;
                 statusLabel.setText("Status: Stopped");
                 portLabel.setVisible(false);

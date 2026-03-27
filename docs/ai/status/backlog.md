@@ -16,7 +16,7 @@
 - Review whether hard-coded remote endpoints and tokens should move to configuration.
 - Review whether printer lookup and print dispatch need stronger fault reporting for operators.
 - Review whether `/api/printPDF` should also offload printer work through `executeBlocking` for consistency with `/api/print`.
-- Review whether packaged-app process signatures are sufficiently stable across Windows and macOS installers, and add stronger matching if field feedback reveals false positives or false negatives.
+- Review whether local file-lock based single-instance control is robust across Windows and macOS packaging/runtime edge cases, and add fallback diagnostics if field feedback reveals false positives or false negatives.
 
 ## Product Backlog
 

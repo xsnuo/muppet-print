@@ -16,8 +16,9 @@ Improve code quality, harden the AI workflow rules, and align human-facing docum
 - Added `readme/` documentation for API reference, usage guidance, packaging guidance, and documentation navigation.
 - Expanded `readme/` into an English-and-Chinese paired documentation set.
 - Added the `human-rules/` sanctuary and recorded that human-authored Markdown rules override AI-generated repository rules.
-- Added cross-platform single-instance startup control based on process-signature detection, while keeping a localhost wake-up channel for bringing the running instance forward.
+- Reworked single-instance startup control to use local file-lock ownership, removing dependency on startup signature or local control ports.
 - Changed web-port conflict handling so the UI remains open and shows an English message instead of treating the conflict as duplicate startup.
+- Changed UI readiness transition so `Status: Ready !` is set only after Vert.x HTTP listen succeeds; if startup fails, UI now returns to `Status: Stopped` and keeps web port input editable.
 
 ## Current Product Understanding
 
@@ -25,7 +26,7 @@ Improve code quality, harden the AI workflow rules, and align human-facing docum
 - Human-facing documentation is now explicitly split between entry README files and detailed guides under `readme/`.
 - The repository now expects AI workflow memory and external documentation to evolve together.
 - The repository now also has a human-authored rule space that AI must read but not modify.
-- The desktop application is now intended to run as a single local instance per host user session, based on process-level duplicate detection rather than web port occupancy.
+- The desktop application is now intended to run as a single local instance per host user session, enforced by local file-lock ownership rather than process-signature matching.
 
 ## Immediate Risks Or Gaps
 

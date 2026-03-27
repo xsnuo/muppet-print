@@ -17,14 +17,14 @@
 ## Operational Constraints
 
 - The default packaged port implied by the UI is `58080`.
-- A dedicated localhost control port is reserved only for foreground wake-up signaling between instances.
+- Single-instance ownership is enforced through a local lock file under the current user home directory.
 - The actual HTTP server port is controlled through `WebVerticle.port` and startup flow; this coupling should be preserved carefully.
 - Printer names are the practical addressing key for print dispatch.
 - Temporary files are created during rendering and PDF handling.
 
 ## Startup Constraints
 
-- Duplicate process detection should be based on process identity and startup signature rather than the configurable web service port.
+- Duplicate process detection should rely on file-lock ownership rather than the configurable web service port.
 - Web port conflicts should not be treated as proof of another Muppet Print instance; they should be surfaced in the UI so the user can choose a different port.
 
 ## Codebase Constraints

@@ -10,7 +10,7 @@ The project is designed for local workstation or trusted LAN scenarios such as s
 - Renders HTML with Playwright Chromium before sending the result to a physical printer.
 - Prints uploaded PDF files directly through the local print stack.
 - Provides a desktop UI with tray support, start/stop controls, and auto-start support for supported platforms.
-- Enforces single-instance startup by detecting existing Muppet Print processes, so repeated launches do not keep opening duplicate processes.
+- Enforces single-instance startup through a local file lock, so repeated launches do not create duplicate processes.
 
 ## Architecture At A Glance
 

@@ -20,7 +20,7 @@ The desktop shell provides:
 - Error message display.
 - Auto-start toggle on supported platforms.
 - Tray minimization behavior where supported.
-- Single-instance startup interception. A later launch detects an existing Muppet Print process, asks that instance to surface, and then exits.
+- Single-instance startup interception. A later launch is blocked by a local file lock and exits with an already-running prompt.
 
 ## Starting The Service
 
@@ -35,6 +35,7 @@ mvn spring-boot:run
 Start the packaged app, then confirm the UI shows a running state. The embedded HTTP service will listen on the configured port.
 
 If the configured web port is already occupied by another application, Muppet Print keeps the UI open and shows an English warning so the user can change the port and try again.
+The UI enters `Stopped` instead of `Ready` when HTTP startup fails, and the web port input remains editable.
 
 ## Integration Flow
 
