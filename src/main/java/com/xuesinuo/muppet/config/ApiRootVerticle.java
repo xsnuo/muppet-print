@@ -62,9 +62,13 @@ public class ApiRootVerticle {
                     String errorId = UUID.randomUUID().toString().substring(0, 8);
                     StringBuilder logBuilder = new StringBuilder();
                     logBuilder.append("MuppetApi error [" + errorId + "]");
-                    logBuilder.append(t.getMessage()).append("\n");
-                    for (StackTraceElement element : t.getStackTrace()) {
-                        logBuilder.append(element.toString()).append("\n");
+                    if (t != null) {
+                        logBuilder.append(String.valueOf(t.getMessage())).append("\n");
+                        for (StackTraceElement element : t.getStackTrace()) {
+                            logBuilder.append(element.toString()).append("\n");
+                        }
+                    } else {
+                        logBuilder.append("Unknown failure\n");
                     }
                     webClient.post(443, "test-wms.foodsup.com", "/api/wms/muppetPrintLog").ssl(true)
                             .sendJson(Map.of(
