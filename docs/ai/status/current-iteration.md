@@ -28,7 +28,14 @@ Improve code quality, harden the AI workflow rules, and align human-facing docum
 - Split desktop UI layout into `MuppetPrinterUi`, `SigninLocalPrinterUi`, and `SignedUi`, keeping `UiStarter` focused on lifecycle and state wiring.
 - Reworked all three desktop pages to use the same half-font-size absolute positioning style, including red inline error feedback consistent with the main page.
 - Fixed `SigninLocalPrinterUi` and `SignedUi` dialog sizing/close behavior by removing premature tiny-window show flow and setting robust minimum window sizes.
-- Restored Vert.x verticle deployment in `VerticleConfiguration` so `WebVerticle` startup signal completes and UI no longer reports false `Web startup timeout` on Run.
+- Refactored runtime hierarchy to `SpringBoot -> (UI beans, Vertx web bean)`, and reduced `UiStarter` to pure Spring Boot bootstrap.
+- Converted `MuppetPrinterUi`, `SigninLocalPrinterUi`, and `SignedUi` into Spring `@Component` beans with non-static interaction methods and bean-state-controlled close behavior.
+- Added `TrayUi` bean and moved tray/window-close UI integration out of `UiStarter`.
+- Converted `WebVerticle` into a Spring-managed lifecycle bean with explicit `start/stop` methods; `Run/Stop` now controls web service directly without starting/stopping Spring context.
+- Added `UiMessageService` bean and removed static `UiStarter` UI message coupling from `VersionApi` and `ApiRootVerticle`.
+- Set Spring Boot desktop startup to non-headless mode to prevent AWT `HeadlessException` during UI bean initialization.
+- Hardened tray `Open` behavior to reliably restore and foreground the main window on macOS (menu click and tray icon click both use the same restore flow).
+- Refactored tray integration so `MuppetPrinterUi` owns main-window show/hide behavior: close button now hides the main UI (without disposing), and tray `Open` re-shows the same main frame.
 - Updated `additional-spring-configuration-metadata.json` with Chinese descriptions and expanded release properties, including an explicit ongoing-maintenance rule in AI memory.
 - Updated server API requirement documents (English/Chinese) with a global unified response envelope rule (`code/message/data`) and printer signin endpoint contracts.
 

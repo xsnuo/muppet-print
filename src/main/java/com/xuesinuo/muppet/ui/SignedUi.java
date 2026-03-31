@@ -21,17 +21,62 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import org.springframework.stereotype.Component;
+
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 
+@Component
 public class SignedUi {
 
-    private SignedUi() {
+    private Dialog dialog;
+    private volatile boolean opened;
+
+    private Label macValueLabel;
+    private Label pcNameValueLabel;
+    private Label urlValueLabel;
+    private Label errorLabel;
+    private Panel tablePanel;
+
+    private HttpClient currentHttpClient;
+    private URI currentSignedUri;
+    private String currentToken;
+    private String currentLocalPcName;
+    private String currentLocalUrl;
+    private List<String> currentLocalPrinters = List.of();
+
+    public void open(Frame owner, HttpClient httpClient, URI signedUri, String token, String localMac,
+            String localPcName, String localUrl, List<String> localPrinters) {
+        if (dialog == null) {
+            initDialog(owner);
+        }
+
+        currentHttpClient = httpClient;
+        currentSignedUri = signedUri;
+        currentToken = token;
+        currentLocalPcName = localPcName;
+        currentLocalUrl = localUrl;
+        currentLocalPrinters = localPrinters == null ? List.of() : localPrinters;
+
+        macValueLabel.setText(localMac == null ? "" : localMac);
+        pcNameValueLabel.setText(localPcName == null ? "" : localPcName);
+        urlValueLabel.setText(localUrl == null ? "" : localUrl);
+        tablePanel.removeAll();
+        errorLabel.setText("Loading...");
+
+        opened = true;
+        dialog.setLocationRelativeTo(owner);
+        dialog.setVisible(true);
+
+        loadSignedRecords();
     }
 
-    public static void show(Frame owner, HttpClient httpClient, URI signedUri, String token, String localMac,
-            String localPcName, String localUrl, List<String> localPrinters) {
-        Dialog dialog = new Dialog(owner, "Signed", true);
+    public boolean isOpened() {
+        return opened;
+    }
+
+    private void initDialog(Frame owner) {
+        dialog = new Dialog(owner, "Signed", false);
         if (owner.getIconImage() != null) {
             dialog.setIconImage(owner.getIconImage());
         }
@@ -40,7 +85,7 @@ public class SignedUi {
         dialog.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
-                dialog.dispose();
+                closeDialog();
             }
         });
         dialog.addNotify();
@@ -51,51 +96,47 @@ public class SignedUi {
         int dialogWidth = Math.max(120 * hfs, 980);
         int dialogHeight = Math.max(54 * hfs, 560);
         dialog.setSize(dialogWidth, dialogHeight);
-        dialog.setLocationRelativeTo(owner);
 
         addLabel(dialog, "mac", 2, 1, 10, hfs, titleBarHeight);
-        addValue(dialog, localMac, 14, 1, 102, hfs, titleBarHeight, Color.BLACK);
+        macValueLabel = addValue(dialog, "", 14, 1, 102, hfs, titleBarHeight, Color.BLACK);
+
         addLabel(dialog, "pc name", 2, 6, 10, hfs, titleBarHeight);
-        addValue(dialog, localPcName, 14, 6, 102, hfs, titleBarHeight, Color.BLACK);
+        pcNameValueLabel = addValue(dialog, "", 14, 6, 102, hfs, titleBarHeight, Color.BLACK);
+
         addLabel(dialog, "url", 2, 11, 10, hfs, titleBarHeight);
-        addValue(dialog, localUrl, 14, 11, 102, hfs, titleBarHeight, Color.BLACK);
+        urlValueLabel = addValue(dialog, "", 14, 11, 102, hfs, titleBarHeight, Color.BLACK);
 
         ScrollPane tableScrollPane = new ScrollPane(ScrollPane.SCROLLBARS_AS_NEEDED);
         tableScrollPane.setBounds(2 * hfs, 16 * hfs + titleBarHeight, 116 * hfs, 25 * hfs);
-        Panel tablePanel = new Panel(null);
+        tablePanel = new Panel(null);
         tableScrollPane.add(tablePanel);
         dialog.add(tableScrollPane);
 
-        Label errorLabel = new Label("Loading...");
+        errorLabel = new Label("Loading...");
         errorLabel.setForeground(Color.RED);
         errorLabel.setBounds(2 * hfs, 43 * hfs + titleBarHeight, 92 * hfs, 4 * hfs);
         dialog.add(errorLabel);
 
         Button closeButton = new Button("Close");
         closeButton.setBounds(104 * hfs, 43 * hfs + titleBarHeight, 12 * hfs, 4 * hfs);
-        closeButton.addActionListener(e -> dialog.dispose());
+        closeButton.addActionListener(e -> closeDialog());
         dialog.add(closeButton);
+    }
 
-        if (signedUri == null) {
-            errorLabel.setText("Server signed URL is not configured.");
-            dialog.addWindowListener(new WindowAdapter() {
-                @Override
-                public void windowClosing(WindowEvent e) {
-                    dialog.dispose();
-                }
-            });
-            dialog.setVisible(true);
+    private void loadSignedRecords() {
+        if (currentSignedUri == null) {
+            EventQueue.invokeLater(() -> errorLabel.setText("Server signed URL is not configured."));
             return;
         }
 
-        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(signedUri).GET();
-        if (token != null && !token.isBlank()) {
-            requestBuilder.header("Muppet-Token", token);
+        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(currentSignedUri).GET();
+        if (currentToken != null && !currentToken.isBlank()) {
+            requestBuilder.header("Muppet-Token", currentToken);
         }
 
         new Thread(() -> {
             try {
-                HttpResponse<String> response = httpClient.send(requestBuilder.build(), HttpResponse.BodyHandlers.ofString());
+                HttpResponse<String> response = currentHttpClient.send(requestBuilder.build(), HttpResponse.BodyHandlers.ofString());
                 if (response.statusCode() != 200) {
                     EventQueue.invokeLater(() -> errorLabel.setText(parseFailureMessage(response.body())));
                     return;
@@ -103,18 +144,16 @@ public class SignedUi {
                 List<SignedPrintRecord> records = parseSignedRecords(response.body());
                 EventQueue.invokeLater(() -> {
                     errorLabel.setText("");
-                    renderSignedTable(tablePanel, records, localPcName, localUrl, localPrinters, hfs);
+                    renderSignedTable(records);
                 });
             } catch (Exception ignored) {
                 EventQueue.invokeLater(() -> errorLabel.setText("error"));
             }
         }).start();
-
-        dialog.setVisible(true);
     }
 
-    private static void renderSignedTable(Panel tablePanel, List<SignedPrintRecord> records, String localPcName,
-            String localUrl, List<String> localPrinters, int hfs) {
+    private void renderSignedTable(List<SignedPrintRecord> records) {
+        int hfs = getHalfFontSize();
         tablePanel.removeAll();
 
         int tableWidth = 112 * hfs;
@@ -137,9 +176,9 @@ public class SignedUi {
             SignedPrintRecord record = records.get(i);
             int rowY = 6 + i * 5;
 
-            Color pcColor = Objects.equals(localPcName, record.pcName) ? Color.BLACK : Color.RED;
-            Color printerColor = localPrinters.contains(record.printerName) ? Color.BLACK : Color.RED;
-            Color urlColor = Objects.equals(localUrl, record.url) ? Color.BLACK : Color.RED;
+            Color pcColor = Objects.equals(currentLocalPcName, record.pcName) ? Color.BLACK : Color.RED;
+            Color printerColor = currentLocalPrinters.contains(record.printerName) ? Color.BLACK : Color.RED;
+            Color urlColor = Objects.equals(currentLocalUrl, record.url) ? Color.BLACK : Color.RED;
 
             addTableCell(tablePanel, record.pcName, 2, rowY, 16, hfs, pcColor);
             addTableCell(tablePanel, record.printerName, 19, rowY, 20, hfs, printerColor);
@@ -157,14 +196,21 @@ public class SignedUi {
         tablePanel.repaint();
     }
 
-    private static void addTableCell(Panel panel, String text, int x, int y, int width, int hfs, Color color) {
+    private void closeDialog() {
+        opened = false;
+        if (dialog != null) {
+            dialog.setVisible(false);
+        }
+    }
+
+    private void addTableCell(Panel panel, String text, int x, int y, int width, int hfs, Color color) {
         Label label = new Label(text == null ? "" : text);
         label.setForeground(color);
         label.setBounds(x * hfs, y * hfs, width * hfs, 4 * hfs);
         panel.add(label);
     }
 
-    private static List<SignedPrintRecord> parseSignedRecords(String body) {
+    private List<SignedPrintRecord> parseSignedRecords(String body) {
         List<SignedPrintRecord> records = new ArrayList<>();
         JsonObject jsonObject = tryParseJsonObject(body);
         if (jsonObject == null) {
@@ -204,7 +250,7 @@ public class SignedUi {
         return records;
     }
 
-    private static String parseFailureMessage(String body) {
+    private String parseFailureMessage(String body) {
         JsonObject jsonObject = tryParseJsonObject(body);
         if (jsonObject != null) {
             String message = jsonObject.getString("message");
@@ -215,7 +261,7 @@ public class SignedUi {
         return "error";
     }
 
-    private static JsonObject tryParseJsonObject(String body) {
+    private JsonObject tryParseJsonObject(String body) {
         if (body == null || body.isBlank()) {
             return null;
         }
@@ -226,21 +272,22 @@ public class SignedUi {
         }
     }
 
-    private static void addLabel(Dialog dialog, String text, int x, int y, int width, int hfs, int titleBarHeight) {
+    private void addLabel(Dialog target, String text, int x, int y, int width, int hfs, int titleBarHeight) {
         Label label = new Label(text);
         label.setBounds(x * hfs, y * hfs + titleBarHeight, width * hfs, 4 * hfs);
-        dialog.add(label);
+        target.add(label);
     }
 
-    private static void addValue(Dialog dialog, String text, int x, int y, int width, int hfs, int titleBarHeight,
+    private Label addValue(Dialog target, String text, int x, int y, int width, int hfs, int titleBarHeight,
             Color color) {
         Label label = new Label(text == null ? "" : text);
         label.setForeground(color);
         label.setBounds(x * hfs, y * hfs + titleBarHeight, width * hfs, 4 * hfs);
-        dialog.add(label);
+        target.add(label);
+        return label;
     }
 
-    private static int getHalfFontSize() {
+    private int getHalfFontSize() {
         Font defaultFont = new Label("Loading...").getFont();
         int fontSize = defaultFont == null ? 12 : defaultFont.getSize();
         return fontSize / 2 + fontSize % 2;

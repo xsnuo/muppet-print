@@ -6,29 +6,88 @@ import java.util.concurrent.TimeoutException;
 
 import org.springframework.stereotype.Component;
 
-import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Vertx;
+import io.vertx.core.http.HttpServer;
 import io.vertx.ext.web.Router;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
-/**
- * Web配置
- * 
- * @author xuesinuo
- */
-@Slf4j
 @Component
 @RequiredArgsConstructor
-public class WebVerticle extends AbstractVerticle {
-    private final Router router;
-    public static volatile int port = 8080;
-    private static volatile CompletableFuture<Void> startupFuture = CompletableFuture.completedFuture(null);
+public class WebVerticle {
 
-    public static synchronized void resetStartupSignal() {
-        startupFuture = new CompletableFuture<>();
+    private final Vertx vertx;
+    private final Router router;
+
+    private volatile HttpServer httpServer;
+    private volatile int runningPort = -1;
+
+    @PostConstruct
+    public void init() {
+        httpServer = null;
+        runningPort = -1;
     }
 
-    public static void awaitStartupResult(long timeoutMillis) {
+    public synchronized void start(int port, long timeoutMillis) {
+        if (isRunning()) {
+            if (runningPort == port) {
+                return;
+            }
+            throw new RuntimeException("Web is already running on port: " + runningPort);
+        }
+
+        CompletableFuture<Void> startupFuture = new CompletableFuture<>();
+        vertx.createHttpServer()
+                .requestHandler(router)
+                .listen(port)
+                .onSuccess(server -> {
+                    httpServer = server;
+                    runningPort = server.actualPort();
+                    System.out.println("Vert.x run on port: " + runningPort);
+                    startupFuture.complete(null);
+                })
+                .onFailure(error -> {
+                    error.printStackTrace();
+                    startupFuture.completeExceptionally(error);
+                });
+
+        waitStartup(startupFuture, timeoutMillis);
+    }
+
+    public synchronized void stop(long timeoutMillis) {
+        if (httpServer == null) {
+            return;
+        }
+
+        HttpServer serverToClose = httpServer;
+        CompletableFuture<Void> stopFuture = new CompletableFuture<>();
+        serverToClose.close()
+                .onSuccess(v -> stopFuture.complete(null))
+                .onFailure(stopFuture::completeExceptionally);
+
+        waitStop(stopFuture, timeoutMillis);
+        httpServer = null;
+        runningPort = -1;
+    }
+
+    public boolean isRunning() {
+        return httpServer != null;
+    }
+
+    public int getRunningPort() {
+        return runningPort;
+    }
+
+    @PreDestroy
+    public void destroy() {
+        try {
+            stop(3000);
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void waitStartup(CompletableFuture<Void> startupFuture, long timeoutMillis) {
         try {
             startupFuture.get(timeoutMillis, TimeUnit.MILLISECONDS);
         } catch (TimeoutException timeoutException) {
@@ -39,18 +98,14 @@ public class WebVerticle extends AbstractVerticle {
         }
     }
 
-    @Override
-    public void start() {
-        vertx.createHttpServer()
-                .requestHandler(router)
-                .listen(port)
-                .onSuccess(hs -> {
-                    log.info("Vert.x run on port: " + hs.actualPort());
-                    startupFuture.complete(null);
-                })
-                .onFailure(error -> {
-                    log.error("Vert.x startup failed on port: {}", port, error);
-                    startupFuture.completeExceptionally(error);
-                });
+    private void waitStop(CompletableFuture<Void> stopFuture, long timeoutMillis) {
+        try {
+            stopFuture.get(timeoutMillis, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException timeoutException) {
+            throw new RuntimeException("Web stop timeout", timeoutException);
+        } catch (Exception exception) {
+            Throwable rootCause = exception.getCause() == null ? exception : exception.getCause();
+            throw new RuntimeException("Web stop failed", rootCause);
+        }
     }
 }

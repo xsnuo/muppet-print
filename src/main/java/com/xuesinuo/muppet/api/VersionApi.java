@@ -4,8 +4,8 @@ import java.util.HashMap;
 
 import org.springframework.stereotype.Component;
 
-import com.xuesinuo.muppet.UiStarter;
 import com.xuesinuo.muppet.config.ApiResult;
+import com.xuesinuo.muppet.ui.UiMessageService;
 import com.xuesinuo.xtool.Np;
 
 import io.vertx.ext.web.Router;
@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 public class VersionApi {
     private final Router router;
     private final WebClient webClient;
+    private final UiMessageService uiMessageService;
 
     @PostConstruct
     public void start() {
@@ -32,8 +33,7 @@ public class VersionApi {
         webClient.get(443, "www.xuesinuo.com", "/muppet-print/version").ssl(true).send()
                 .onSuccess(resp -> {
                     if (Np.i(resp.bodyAsString()).notEq(VERSION)) {
-                        UiStarter.errorMessage = "new version: https://github.com/xsnuo/muppet-print/releases";
-                        UiStarter.error(UiStarter.errorMessage);
+                        uiMessageService.setDefaultMessage("new version: https://github.com/xsnuo/muppet-print/releases");
                     }
                 });
     }

@@ -2,51 +2,47 @@
 
 ## Runtime Shape
 
-The application is a desktop-oriented Java process that combines a local GUI shell with an embedded HTTP service.
+The application is a desktop-oriented Java process where Spring Boot is the top-level runtime host for both UI and web runtime components.
 
 At runtime it is composed of four main layers:
 
-1. Desktop shell and lifecycle entry.
-2. Spring Boot dependency injection and startup.
-3. Vert.x HTTP routing and async execution.
+1. Spring Boot dependency injection and startup.
+2. Desktop UI beans and tray integration.
+3. Vert.x HTTP router/web runtime beans.
 4. Print rendering and printer dispatch.
 
 ## Main Components
 
 ### UiStarter
 
-`UiStarter` is the effective entrypoint for packaged use.
+`UiStarter` is now a pure Spring Boot bootstrap entrypoint.
 
 Responsibilities:
 
-- Create and manage the desktop lifecycle shell.
-- Enforce single-instance startup using a local file lock under the current user home directory.
-- Initialize tray integration.
-- Manage application start/stop state.
-- Trigger Playwright availability check.
-- Start or stop the Spring application context.
-- Surface operational messages to the local user.
+- Start Spring Boot context only.
 
-The concrete AWT page layouts are now split under `com.xuesinuo.muppet.ui`:
+UI lifecycle and page layout are split under `com.xuesinuo.muppet.ui` and managed as Spring beans:
 
-- `MuppetPrinterUi`: main desktop shell frame and control placement.
-- `SigninLocalPrinterUi`: local printer signin dialog with client-side validation.
-- `SignedUi`: signed-printer list dialog with mismatch highlighting.
+- `MuppetPrinterUi`: main desktop shell frame, single-instance lock, UI-state transitions, and Run/Stop actions.
+- `SigninLocalPrinterUi`: local printer signin dialog with client-side validation and bean-state-driven open/close behavior.
+- `SignedUi`: signed-printer list dialog with mismatch highlighting and bean-state-driven open/close behavior.
+- `TrayUi`: system tray integration and application exit bridge.
+- `UiMessageService`: shared UI message channel for API/runtime components.
 
 ### Spring Boot context
 
-Spring Boot provides bean lifecycle and component discovery. It wires the router, Vert.x instance, web client, APIs, and verticles.
+Spring Boot provides bean lifecycle and component discovery. It wires router, Vert.x runtime, API components, and UI components in the same container.
 
 ### Vert.x infrastructure
 
 Vert.x is used for:
 
 - Router creation.
-- HTTP server creation.
+- HTTP server creation and shutdown through `WebVerticle` bean start/stop methods.
 - Async offloading with `executeBlocking`.
 - Unified API failure handling.
 
-This is a hybrid architecture: Spring manages object construction, while Vert.x handles request execution.
+This remains a hybrid architecture: Spring manages lifecycle and orchestration, while Vert.x handles HTTP request execution.
 
 ### API root handling
 
@@ -124,9 +120,9 @@ Responsibilities:
 
 The project is intended to be packaged as a desktop application for Windows, macOS, and Linux. The current repository also builds a Spring Boot JAR, but the operator model clearly assumes a local GUI host with printer access.
 
-The startup path now enforces a single-instance desktop model by acquiring a local file lock before UI initialization. A later-launched process shows an already-running prompt and then exits.
+The startup path now enforces a single-instance desktop model in `MuppetPrinterUi` by acquiring a local file lock during bean initialization. A later-launched process shows an already-running prompt and closes the Spring context.
 
-The start-state transition now waits for Vert.x HTTP listen success before marking the UI as ready. If listen fails (for example because the port is occupied), the UI returns to `Stopped` and re-enables the port input.
+The `Run` and `Stop` buttons now control web runtime directly through `WebVerticle` bean start/stop calls, without rebuilding or stopping Spring context.
 
 ## External Dependencies And Integrations
 
@@ -144,7 +140,7 @@ The start-state transition now waits for Vert.x HTTP listen success before marki
 
 ## Architectural Risks
 
-- UI, lifecycle, and application startup are tightly coupled in `UiStarter`.
+- UI lifecycle and operational orchestration remain centralized in `MuppetPrinterUi` and may still require future decomposition.
 - The system assumes trusted callers and permissive CORS.
 - The current implementation depends on host-specific printer and browser behavior.
 - There is limited observable job lifecycle beyond synchronous success/failure.

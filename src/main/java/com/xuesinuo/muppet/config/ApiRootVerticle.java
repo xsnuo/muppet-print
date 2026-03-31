@@ -6,10 +6,10 @@ import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import com.xuesinuo.muppet.UiStarter;
 import com.xuesinuo.muppet.api.VersionApi;
 import com.xuesinuo.muppet.config.exceptions.ParamException;
 import com.xuesinuo.muppet.config.exceptions.ServiceException;
+import com.xuesinuo.muppet.ui.UiMessageService;
 
 import io.vertx.core.json.Json;
 import io.vertx.ext.web.Router;
@@ -26,6 +26,7 @@ public class ApiRootVerticle {
 
     private final Router router;
     private final WebClient webClient;
+    private final UiMessageService uiMessageService;
 
     @Value("${release.server.host:}")
     private String releaseServerHost;
@@ -92,9 +93,9 @@ public class ApiRootVerticle {
                                     "level", "error",
                                     "version", VersionApi.VERSION,
                                     "message", logBuilder.toString()))
-                                    .onFailure(error -> UiStarter.error("send error log failed."));
+                                    .onFailure(error -> uiMessageService.showMessage("send error log failed."));
                         } catch (Exception error) {
-                            UiStarter.error("send error log failed.");
+                            uiMessageService.showMessage("send error log failed.");
                         }
                     }
                     apiResult.setCode(ApiResultCode.SYSTEM_ERROR);
