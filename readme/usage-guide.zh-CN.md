@@ -37,6 +37,18 @@ mvn spring-boot:run
 如果当前配置的 Web 端口已被其他应用占用，Muppet Print 不会把它当成重复运行，而是保持 UI 打开，并用英文提示用户修改端口后重新启动服务。
 Web 启动失败时，UI 状态会回到 `Stopped`，并保持端口输入框可编辑。
 
+## Release 服务器配置
+
+发行版可通过 Spring Boot 配置控制远端回调行为：
+
+- `release.server.host`：服务器域名。为空时，Muppet Print 会跳过远端异常日志上报。
+- `release.server.prefix`：访问服务器时统一附加的可选接口前缀，例如 `/api`。
+- `release.server.token`：回调请求头 token，header key 固定为 `Muppet-Token`。
+
+当前远端异常回调路径为 `/{prefix}/muppet/log`。
+当 `release.server.prefix` 为空时，实际路径为 `/muppet/log`。
+服务器接口契约详见 [server-api-requirements.zh-CN.md](server-api-requirements.zh-CN.md)。
+
 ## 对接流程
 
 ### 第一步：获取打印机列表

@@ -10,6 +10,7 @@ This directory stores human-facing operational and integration documentation.
 ## Guides
 
 - API reference: [api-reference.md](api-reference.md)
+- Server API requirements: [server-api-requirements.md](server-api-requirements.md)
 - Usage guide: [usage-guide.md](usage-guide.md)
 - Packaging guide: [packaging-guide.md](packaging-guide.md)
 

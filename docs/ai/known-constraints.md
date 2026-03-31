@@ -31,7 +31,7 @@
 
 - The project uses a hybrid Spring Boot + Vert.x model rather than pure Spring MVC.
 - Error handling is centralized in Vert.x route failure handling rather than distributed controller advice.
-- Some external endpoints and one logging token are hard-coded in source.
+- Release callback server connectivity depends on `release.server.*` properties, and callback push is skipped when `release.server.host` is blank.
 - `SystemException` exists but is not distinctly handled in the current API root failure flow.
 
 ## Packaging Constraints

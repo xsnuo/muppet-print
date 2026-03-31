@@ -37,6 +37,18 @@ Start the packaged app, then confirm the UI shows a running state. The embedded 
 If the configured web port is already occupied by another application, Muppet Print keeps the UI open and shows an English warning so the user can change the port and try again.
 The UI enters `Stopped` instead of `Ready` when HTTP startup fails, and the web port input remains editable.
 
+## Release Server Configuration
+
+Release builds can configure remote callback behavior through Spring Boot config:
+
+- `release.server.host`: server host name. If blank, Muppet Print skips remote error-log push.
+- `release.server.prefix`: optional API prefix added before callback paths. Example: `/api`.
+- `release.server.token`: token used in callback headers with key `Muppet-Token`.
+
+Current remote error callback target path is `/{prefix}/muppet/log`.
+If `release.server.prefix` is blank, the effective path is `/muppet/log`.
+See [server-api-requirements.md](server-api-requirements.md) for server contract details.
+
 ## Integration Flow
 
 ### Step 1. List Printers

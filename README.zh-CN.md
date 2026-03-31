@@ -25,6 +25,7 @@ AI 持续维护的项目记忆与架构说明见：[docs/ai/project-overview.md]
 
 - 英文入口文档：[README.md](README.md)
 - API 接口文档：[readme/api-reference.md](readme/api-reference.md)
+- 服务器 API 要求文档：[readme/server-api-requirements.zh-CN.md](readme/server-api-requirements.zh-CN.md)
 - 使用说明：[readme/usage-guide.md](readme/usage-guide.md)
 - 多系统打包说明：[readme/packaging-guide.md](readme/packaging-guide.md)
 - 文档总览与后续扩展主题：[readme/README.md](readme/README.md)

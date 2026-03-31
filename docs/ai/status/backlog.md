@@ -13,7 +13,6 @@
 - Review whether `UiStarter` should be decomposed to reduce UI and lifecycle coupling.
 - Review whether print-job observability should include IDs, timing, and structured logs.
 - Review whether `SystemException` should be integrated into the central error taxonomy or removed.
-- Review whether hard-coded remote endpoints and tokens should move to configuration.
 - Review whether printer lookup and print dispatch need stronger fault reporting for operators.
 - Review whether `/api/printPDF` should also offload printer work through `executeBlocking` for consistency with `/api/print`.
 - Review whether local file-lock based single-instance control is robust across Windows and macOS packaging/runtime edge cases, and add fallback diagnostics if field feedback reveals false positives or false negatives.

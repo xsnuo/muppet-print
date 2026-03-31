@@ -29,6 +29,8 @@ Known result codes:
 - `SYSTEM_ERROR`
 - `SERVICE_ERROR`
 
+For server-side callback contract requirements used by Muppet Print release integrations, see [server-api-requirements.md](server-api-requirements.md).
+
 ## 1. Get All Printers
 
 ### 1.1 Endpoint

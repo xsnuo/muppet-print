@@ -1,0 +1,5 @@
+release:
+  server:
+    host: ""
+    prefix: ""
+    token: ""

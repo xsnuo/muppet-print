@@ -29,6 +29,8 @@ http://127.0.0.1:58080
 - `SYSTEM_ERROR`
 - `SERVICE_ERROR`
 
+与 Muppet Print 发行版回调相关的“服务器接口契约要求”，请见：[server-api-requirements.zh-CN.md](server-api-requirements.zh-CN.md)。
+
 ## 1. 获取打印机列表
 
 ### 1.1 接口地址

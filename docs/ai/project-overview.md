@@ -32,6 +32,12 @@ The application includes an AWT-based desktop shell with tray support, status di
 
 The service exposes a version API and also checks a remote endpoint for newer published versions.
 
+### 7. Release callback configuration
+
+Release builds can configure server callback behavior through `release.server.*` Spring properties.
+Current callback usage includes remote error-log push to `/{prefix}/muppet/log` with token in header `Muppet-Token`.
+If release server host is not configured, callback push is skipped safely.
+
 ## Target Usage Pattern
 
 The typical flow is:

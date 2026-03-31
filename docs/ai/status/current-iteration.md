@@ -19,6 +19,9 @@ Improve code quality, harden the AI workflow rules, and align human-facing docum
 - Reworked single-instance startup control to use local file-lock ownership, removing dependency on startup signature or local control ports.
 - Changed web-port conflict handling so the UI remains open and shows an English message instead of treating the conflict as duplicate startup.
 - Changed UI readiness transition so `Status: Ready !` is set only after Vert.x HTTP listen succeeds; if startup fails, UI now returns to `Status: Stopped` and keeps web port input editable.
+- Moved remote error-log callback host, path prefix, and token to Spring Boot configuration under `release.server.*`.
+- Changed remote error-log callback route to `/{prefix}/muppet/log` and moved token passing from request body into `Muppet-Token` header.
+- Added bilingual human-facing server API requirement documents for release callback contracts.
 
 ## Current Product Understanding
 
@@ -30,12 +33,10 @@ Improve code quality, harden the AI workflow rules, and align human-facing docum
 
 ## Immediate Risks Or Gaps
 
-- External endpoints and logging token configuration remain hard-coded in source.
 - Linux native packaging is not yet defined as a dedicated Maven packaging profile.
 - There is still no formal example set for advanced HTML asset strategies beyond the API guide.
 
 ## Recommended Next Iteration Focus
 
-- Review whether version-check and remote error-reporting endpoints should become configurable.
 - Decide whether to add Linux native packaging support and document it.
 - Consider documenting cluster-based print instruction exchange if Vert.x cluster mode becomes a real feature.

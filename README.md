@@ -25,6 +25,7 @@ For the AI-maintained project memory and architecture notes, see [docs/ai/projec
 
 - Chinese entry: [README.zh-CN.md](README.zh-CN.md)
 - API reference: [readme/api-reference.md](readme/api-reference.md)
+- Server API requirements: [readme/server-api-requirements.md](readme/server-api-requirements.md)
 - Usage guide: [readme/usage-guide.md](readme/usage-guide.md)
 - Packaging guide: [readme/packaging-guide.md](readme/packaging-guide.md)
 - Documentation index and future integration topics: [readme/README.md](readme/README.md)

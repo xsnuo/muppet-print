@@ -10,6 +10,7 @@
 ## 详细文档
 
 - API 接口文档：[api-reference.zh-CN.md](api-reference.zh-CN.md)
+- 服务器 API 要求文档：[server-api-requirements.zh-CN.md](server-api-requirements.zh-CN.md)
 - 使用说明：[usage-guide.zh-CN.md](usage-guide.zh-CN.md)
 - 打包说明：[packaging-guide.zh-CN.md](packaging-guide.zh-CN.md)
 

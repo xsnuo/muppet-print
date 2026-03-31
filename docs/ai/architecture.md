@@ -127,7 +127,7 @@ The start-state transition now waits for Vert.x HTTP listen success before marki
 - Playwright Chromium runtime for rendering.
 - Local OS printer subsystem.
 - Remote version endpoint at `www.xuesinuo.com`.
-- Remote error log endpoint at `test-wms.foodsup.com`.
+- Optional remote error log callback configured by `release.server.host`, `release.server.prefix`, and `release.server.token`.
 
 ## Architectural Strengths
 
@@ -139,7 +139,6 @@ The start-state transition now waits for Vert.x HTTP listen success before marki
 ## Architectural Risks
 
 - UI, lifecycle, and application startup are tightly coupled in `UiStarter`.
-- Some external endpoints and tokens are hard-coded.
 - The system assumes trusted callers and permissive CORS.
 - The current implementation depends on host-specific printer and browser behavior.
 - There is limited observable job lifecycle beyond synchronous success/failure.
