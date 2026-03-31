@@ -16,6 +16,7 @@
 
 - 端口输入。
 - 启动与停止按钮。
+- 当 `release.signin.enable=true` 时，额外提供打印机注册相关按钮（`Signin local printer`、`Signed`）。
 - 运行状态显示。
 - 错误消息显示。
 - 支持平台上的开机自启开关。
@@ -44,10 +45,18 @@ Web 启动失败时，UI 状态会回到 `Stopped`，并保持端口输入框可
 - `release.server.host`：服务器域名。为空时，Muppet Print 会跳过远端异常日志上报。
 - `release.server.prefix`：访问服务器时统一附加的可选接口前缀，例如 `/api`。
 - `release.server.token`：回调请求头 token，header key 固定为 `Muppet-Token`。
+- `release.signin.enable`：是否启用桌面端打印机注册界面及其服务器调用能力。
 
 当前远端异常回调路径为 `/{prefix}/muppet/log`。
 当 `release.server.prefix` 为空时，实际路径为 `/muppet/log`。
 服务器接口契约详见 [server-api-requirements.zh-CN.md](server-api-requirements.zh-CN.md)。
+
+启用打印机注册后：
+
+- `Signin local printer` 会打开注册表单，并提交到 `POST /{prefix}/muppet/signin`。
+- 注册表单会先在本地校验打印机选择以及 page width/page height，再决定是否发起服务器请求。
+- `Signed` 会打开当前机器已注册打印机列表，数据来自 `GET /muppet/signed?mac=<本机mac>`。
+- 已注册打印机列表会将与本机不一致的关键字段用红字标出，便于操作员检查。
 
 ## 对接流程
 

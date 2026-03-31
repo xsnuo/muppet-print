@@ -45,3 +45,4 @@
 - Durable AI memory must remain in visible repository paths.
 - AI narrative documents may use English.
 - Programming communication and code comments should use Chinese.
+- `src/main/resources/META-INF/additional-spring-configuration-metadata.json` must be actively maintained whenever Spring config is added/changed, and property descriptions should remain Chinese and aligned with runtime behavior.

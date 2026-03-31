@@ -3,7 +3,22 @@
         {
             "name": "release.server.host",
             "type": "java.lang.String",
-            "description": "A description for 'release.server.host'"
+            "description": "发布模式回调服务器主机名或基址，为空时不发起服务器回调。Ex: http://www.xuesinuo.com"
+        },
+        {
+            "name": "release.server.prefix",
+            "type": "java.lang.String",
+            "description": "服务器提供接口的统一前缀，会拼接到 /muppet/* 路径前。Ex: /muppet"
+        },
+        {
+            "name": "release.server.token",
+            "type": "java.lang.String",
+            "description": "发布模式回调鉴权令牌，通过请求头 Muppet-Token 发送。Ex: xuesinuo"
+        },
+        {
+            "name": "release.signin.enable",
+            "type": "java.lang.Boolean",
+            "description": "是否开启打印机注册功能。true 开启后在桌面界面显示注册相关按钮。Ex: true"
         }
     ]
 }

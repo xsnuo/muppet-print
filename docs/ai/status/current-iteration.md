@@ -22,6 +22,15 @@ Improve code quality, harden the AI workflow rules, and align human-facing docum
 - Moved remote error-log callback host, path prefix, and token to Spring Boot configuration under `release.server.*`.
 - Changed remote error-log callback route to `/{prefix}/muppet/log` and moved token passing from request body into `Muppet-Token` header.
 - Added bilingual human-facing server API requirement documents for release callback contracts.
+- Added `release.signin.enable` configuration and desktop UI entry buttons for printer signin management.
+- Implemented desktop "Signin local printer" form flow with local device/printer prefill, numeric validation, and server POST `/muppet/signin` handling.
+- Implemented desktop "Signed" list dialog with server GET `/muppet/signed` loading, table rendering, and mismatch highlighting for pc name/printer/url.
+- Split desktop UI layout into `MuppetPrinterUi`, `SigninLocalPrinterUi`, and `SignedUi`, keeping `UiStarter` focused on lifecycle and state wiring.
+- Reworked all three desktop pages to use the same half-font-size absolute positioning style, including red inline error feedback consistent with the main page.
+- Fixed `SigninLocalPrinterUi` and `SignedUi` dialog sizing/close behavior by removing premature tiny-window show flow and setting robust minimum window sizes.
+- Restored Vert.x verticle deployment in `VerticleConfiguration` so `WebVerticle` startup signal completes and UI no longer reports false `Web startup timeout` on Run.
+- Updated `additional-spring-configuration-metadata.json` with Chinese descriptions and expanded release properties, including an explicit ongoing-maintenance rule in AI memory.
+- Updated server API requirement documents (English/Chinese) with a global unified response envelope rule (`code/message/data`) and printer signin endpoint contracts.
 
 ## Current Product Understanding
 

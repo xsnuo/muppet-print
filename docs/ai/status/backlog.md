@@ -16,6 +16,7 @@
 - Review whether printer lookup and print dispatch need stronger fault reporting for operators.
 - Review whether `/api/printPDF` should also offload printer work through `executeBlocking` for consistency with `/api/print`.
 - Review whether local file-lock based single-instance control is robust across Windows and macOS packaging/runtime edge cases, and add fallback diagnostics if field feedback reveals false positives or false negatives.
+- Implement server/API contract and desktop action for deleting an existing signed printer row (current UI delete button is placeholder only).
 
 ## Product Backlog
 

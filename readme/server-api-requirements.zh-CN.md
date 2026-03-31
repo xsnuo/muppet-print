@@ -62,7 +62,91 @@ POST /{prefix}/muppet/log
 - `version` 为运行中的 Muppet Print 版本号。
 - `message` 为系统拼接的错误摘要和堆栈信息。
 
-## 5. 运行行为要求
+## 5. 统一响应包装要求（全局规则）
+
+Muppet Print 在发布集成模式下调用的所有服务器接口，都必须返回统一 JSON 包装结构：
+
+```json
+{
+  "code": "SUCCESS",
+  "message": null,
+  "data": {}
+}
+```
+
+要求如下：
+
+- 业务层成功或失败建议统一返回 HTTP `200`。
+- `code` 必填。成功必须使用 `SUCCESS`。
+- `message` 失败时应给出可读错误信息；成功时可为 `null`。
+- `data` 承载业务数据；无数据时可统一为 `null` 或 `{}`。
+
+该包装结构为全局约束，后续新增的任何服务器回调接口都应沿用。
+
+## 6. 打印机注册接口（发布集成）
+
+当 `release.signin.enable=true` 时，Muppet Print 可能调用以下服务器接口。
+
+### 6.1 注册本机打印机
+
+```text
+POST /{prefix}/muppet/signin
+Content-Type: application/json
+```
+
+请求体：
+
+```json
+{
+  "mac": "xx-xx-xx-xx-xx-xx",
+  "pcName": "HOSTNAME",
+  "printerName": "Brother_QL_820NWB",
+  "url": "http://HOSTNAME:58080",
+  "pageWidth": 40,
+  "pageHeight": 60
+}
+```
+
+成功响应：
+
+```json
+{
+  "code": "SUCCESS",
+  "message": null,
+  "data": {}
+}
+```
+
+### 6.2 查询已注册打印机
+
+```text
+GET /muppet/signed?mac=<本机mac>
+```
+
+成功响应：
+
+```json
+{
+  "code": "SUCCESS",
+  "message": null,
+  "data": {
+    "prints": [
+      {
+        "mac": "xx-xx-xx-xx-xx-xx",
+        "pcName": "HOSTNAME",
+        "printerName": "Brother_QL_820NWB",
+        "url": "http://HOSTNAME:58080",
+        "pageWidth": 40,
+        "pageHeight": 60
+      }
+    ]
+  }
+}
+```
+
+`prints` 应始终返回数组，无记录时返回空数组。
+
+## 7. 运行行为要求
 
 - `release.server.host` 缺失时，不可导致运行时报错，必须直接跳过回调上报。
 - 回调上报失败不可影响本地 API 的失败响应，Muppet Print 仍按本地 `ApiResult` 规范返回。

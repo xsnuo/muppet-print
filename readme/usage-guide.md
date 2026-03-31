@@ -16,6 +16,7 @@ The desktop shell provides:
 
 - Port input.
 - Start and stop actions.
+- Optional printer registration actions (`Signin local printer`, `Signed`) when `release.signin.enable=true`.
 - Running status display.
 - Error message display.
 - Auto-start toggle on supported platforms.
@@ -44,10 +45,18 @@ Release builds can configure remote callback behavior through Spring Boot config
 - `release.server.host`: server host name. If blank, Muppet Print skips remote error-log push.
 - `release.server.prefix`: optional API prefix added before callback paths. Example: `/api`.
 - `release.server.token`: token used in callback headers with key `Muppet-Token`.
+- `release.signin.enable`: enables the desktop printer signin UI and related server calls.
 
 Current remote error callback target path is `/{prefix}/muppet/log`.
 If `release.server.prefix` is blank, the effective path is `/muppet/log`.
 See [server-api-requirements.md](server-api-requirements.md) for server contract details.
+
+When printer signin is enabled:
+
+- `Signin local printer` opens a form and submits to `POST /{prefix}/muppet/signin`.
+- The signin form validates printer selection and page width/height locally before any server request is sent.
+- `Signed` opens the local machine's signed-printer list loaded from `GET /muppet/signed?mac=<local-mac>`.
+- The signed-printer list highlights local mismatch fields in red for quick operator review.
 
 ## Integration Flow
 

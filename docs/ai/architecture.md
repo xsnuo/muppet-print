@@ -19,13 +19,19 @@ At runtime it is composed of four main layers:
 
 Responsibilities:
 
-- Create and manage the AWT frame.
+- Create and manage the desktop lifecycle shell.
 - Enforce single-instance startup using a local file lock under the current user home directory.
 - Initialize tray integration.
 - Manage application start/stop state.
 - Trigger Playwright availability check.
 - Start or stop the Spring application context.
 - Surface operational messages to the local user.
+
+The concrete AWT page layouts are now split under `com.xuesinuo.muppet.ui`:
+
+- `MuppetPrinterUi`: main desktop shell frame and control placement.
+- `SigninLocalPrinterUi`: local printer signin dialog with client-side validation.
+- `SignedUi`: signed-printer list dialog with mismatch highlighting.
 
 ### Spring Boot context
 

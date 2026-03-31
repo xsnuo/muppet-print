@@ -2,9 +2,14 @@ package com.xuesinuo.muppet;
 
 import java.io.IOException;
 import java.awt.*;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.nio.charset.StandardCharsets;
 import javax.imageio.ImageIO;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import javax.print.PrintService;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.net.BindException;
@@ -15,13 +20,22 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Properties;
 import java.util.Timer;
 import java.util.TimerTask;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ApplicationContext;
+import org.springframework.beans.factory.config.YamlPropertiesFactoryBean;
+import org.springframework.core.io.ClassPathResource;
 
 import com.microsoft.playwright.Playwright;
+import com.xuesinuo.muppet.tool.PrinterUtil;
+import com.xuesinuo.muppet.ui.MuppetPrinterUi;
+import com.xuesinuo.muppet.ui.SigninLocalPrinterUi;
+import com.xuesinuo.muppet.ui.SignedUi;
 import com.xuesinuo.muppet.vertx.WebVerticle;
 
 @SpringBootApplication
@@ -36,16 +50,10 @@ public class UiStarter {
 
     public static final String port = "58080";
     public static String errorMessage = "";
-
-    private static final Frame frame = new Frame();
-    private static final Label portTitelLabel = new Label("Web Port:");
-    private static final Label portLabel = new Label("");
-    private static final TextField portTextField = new TextField(4);
-    private static final Label statusLabel = new Label("Status: Stopped");
-    private static final Button runButton = new Button("Run");
-    private static final Button stopButton = new Button("Stop");
-    private static final Label messageLabel = new Label("");
-    private static final Checkbox autoStartCheckbox = new Checkbox("auto start on boot");
+    private static final Properties appConfig = loadAppConfig();
+    private static final boolean signinEnable = Boolean.parseBoolean(getConfigValue("release.signin.enable", "false"));
+    private static final HttpClient httpClient = HttpClient.newBuilder().build();
+    private static MuppetPrinterUi muppetPrinterUi;
 
     // 系统托盘相关
     private static TrayIcon trayIcon;
@@ -60,16 +68,18 @@ public class UiStarter {
             return;
         }
         Runtime.getRuntime().addShutdownHook(new Thread(UiStarter::releaseSingleInstanceLock));
-
-        frame.setTitle("Muppet Printer");
-        // 设置自定义图标，假设图标文件为 app.png 放在 resources 目录下
         java.awt.Image icon = getAppIcon();
-        if (icon != null) {
-            frame.setIconImage(icon);
-        }
-        frame.setSize(0, 0);
-        frame.setResizable(false);
-        frame.setLayout(null);// NULL布局，绝对坐标值布局
+        muppetPrinterUi = new MuppetPrinterUi(signinEnable, icon, UiStarter::startSpringApplication,
+                UiStarter::stopSpringApplication, UiStarter::openSigninLocalPrinterDialog,
+                UiStarter::openSignedDialog, UiStarter::isAutoStartEnabled, enabled -> {
+                    if (enabled) {
+                        enableAutoStart();
+                    } else {
+                        disableAutoStart();
+                    }
+                }, port);
+        Frame frame = muppetPrinterUi.getFrame();
+
         // 托盘支持
         if (SystemTray.isSupported()) {
             systemTray = SystemTray.getSystemTray();
@@ -119,93 +129,17 @@ public class UiStarter {
                 }
             });
         }
-        frame.setVisible(true);
-        Insets insets = frame.getInsets();
-        int titleBarHeight = insets.top; // 标题栏高度
-        frame.setVisible(false);
-        Label label = new Label("Loading...");
-        frame.add(label);
-        Font defaultFont = label.getFont();
-        int fs = defaultFont.getSize(); // 字体大小
-        int hfs = fs / 2 + fs % 2;
-        frame.setSize(75 * hfs, 45 * hfs);// 窗口大小
-
-        /*
-         * 布局计算方式：
-         * 
-         * hfs - half font size 半个字体大小，作为基本高度单元。
-         * 
-         * 每行内容占用空间5hfs：字符行高4hfs，上间距1hfs。
-         * 
-         * 标准行 y = 行号 * 5 + 1 (hfs)
-         * 
-         * 标准行 height = 4 (hfs)
-         */
-
-        // 端口
-        portTitelLabel.setBounds(2 * hfs, 1 * hfs + titleBarHeight, 12 * hfs, 4 * hfs);
-        frame.add(portTitelLabel);
-
-        portLabel.setBounds(14 * hfs, 1 * hfs + titleBarHeight, 14 * hfs, 4 * hfs);
-        portLabel.setVisible(false);
-        frame.add(portLabel);
-
-        portTextField.setBounds(14 * hfs, 1 * hfs + titleBarHeight, 14 * hfs, 4 * hfs);
-        portTextField.setText(port);
-        frame.add(portTextField);
-
-        // 状态
-        statusLabel.setBounds(2 * hfs, 6 * hfs + titleBarHeight, 46 * hfs, 4 * hfs);
-        frame.add(statusLabel);
-
-        // 运行/停止按钮
-        runButton.setBounds(2 * hfs, 11 * hfs + titleBarHeight, 20 * hfs, 4 * hfs);
-        runButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                startSpringApplication();
-            }
-        });
-        frame.add(runButton);
-
-        stopButton.setBounds(24 * hfs, 11 * hfs + titleBarHeight, 20 * hfs, 4 * hfs);
-        stopButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                stopSpringApplication();
-            }
-        });
-        frame.add(stopButton);
-
-        // 开机自启动复选框
-        autoStartCheckbox.setBounds(2 * hfs, 16 * hfs + titleBarHeight, 25 * hfs, 4 * hfs);
-        autoStartCheckbox.setState(isAutoStartEnabled());
-        autoStartCheckbox.addItemListener(e -> {
-            if (autoStartCheckbox.getState()) {
-                enableAutoStart();
-            } else {
-                disableAutoStart();
-            }
-        });
-        frame.add(autoStartCheckbox);
-
-        // 消息标签
-        messageLabel.setForeground(Color.RED);
-        messageLabel.setBounds(2 * hfs, 21 * hfs + titleBarHeight, 70 * hfs, 4 * hfs);
-        frame.add(messageLabel);
-
-        frame.setVisible(true);
 
         // 检查Playwright插件
-        messageLabel.setText("Loading update. Please wait...");
+        muppetPrinterUi.getMessageLabel().setText("Loading update. Please wait...");
         new Thread(() -> {
             try (Playwright playwright = Playwright.create()) {
-                messageLabel.setText("Update completed.");
+                muppetPrinterUi.getMessageLabel().setText("Update completed.");
                 startSpringApplication();
-                messageLabel.setText(errorMessage);
+                muppetPrinterUi.getMessageLabel().setText(errorMessage);
             } catch (Exception e) {
                 e.printStackTrace();
-                messageLabel.setText("Setup failed!" + e.getMessage());
+                muppetPrinterUi.getMessageLabel().setText("Setup failed!" + e.getMessage());
                 return;
             }
         }).start();
@@ -375,7 +309,9 @@ public class UiStarter {
      * UI上显示错误信息
      */
     public static void error(String msg) {
-        messageLabel.setText(msg);
+        if (muppetPrinterUi != null) {
+            muppetPrinterUi.getMessageLabel().setText(msg);
+        }
     }
 
     private static boolean acquireSingleInstanceLock() {
@@ -465,7 +401,7 @@ public class UiStarter {
             });
             dialog.setVisible(true);
         } catch (Exception e) {
-            System.err.println("Muppet Print is already running.");
+            e.printStackTrace();
         }
     }
 
@@ -475,7 +411,7 @@ public class UiStarter {
     public static void startSpringApplication() {
         Integer port = null;
         String message = "";
-        String portString = portTextField.getText();
+        String portString = muppetPrinterUi.getPortTextField().getText();
         try {
             if (portString == null || portString.isBlank()) {
                 throw new RuntimeException("Warning: Please enter a port");
@@ -491,13 +427,13 @@ public class UiStarter {
         }
         if (!message.isBlank()) {
             final String msg = message;
-            messageLabel.setText(msg);
+            muppetPrinterUi.getMessageLabel().setText(msg);
             Timer timer = new Timer();
             timer.schedule(new TimerTask() {
                 @Override
                 public void run() {
-                    if (msg.equals(messageLabel.getText())) {
-                        messageLabel.setText(errorMessage);
+                    if (msg.equals(muppetPrinterUi.getMessageLabel().getText())) {
+                        muppetPrinterUi.getMessageLabel().setText(errorMessage);
                     }
                 }
             }, 5000);
@@ -512,10 +448,10 @@ public class UiStarter {
                 return;
             }
             appState = 1;
-            statusLabel.setText("Status: Starting...");
-            portTextField.setVisible(false);
-            portLabel.setText("" + port);
-            portLabel.setVisible(true);
+            muppetPrinterUi.getStatusLabel().setText("Status: Starting...");
+            muppetPrinterUi.getPortTextField().setVisible(false);
+            muppetPrinterUi.getPortLabel().setText("" + port);
+            muppetPrinterUi.getPortLabel().setVisible(true);
         }
         WebVerticle.port = port;
         new Thread(() -> {
@@ -524,7 +460,7 @@ public class UiStarter {
                 springContext = SpringApplication.run(UiStarter.class, new String[0]);
                 WebVerticle.awaitStartupResult(WEB_STARTUP_TIMEOUT_MS);
                 System.out.println("Startup complete: " + springContext);
-                statusLabel.setText("Status: Ready !");
+                muppetPrinterUi.getStatusLabel().setText("Status: Ready !");
                 appState = 2;
             } catch (Exception ex) {
                 if (springContext != null) {
@@ -535,9 +471,9 @@ public class UiStarter {
                     springContext = null;
                 }
                 appState = 0;
-                statusLabel.setText("Status: Stopped");
-                portLabel.setVisible(false);
-                portTextField.setVisible(true);
+                muppetPrinterUi.getStatusLabel().setText("Status: Stopped");
+                muppetPrinterUi.getPortLabel().setVisible(false);
+                muppetPrinterUi.getPortTextField().setVisible(true);
                 if (isPortInUseError(ex)) {
                     error("Web port is already in use. Please change the port.");
                 } else {
@@ -564,18 +500,172 @@ public class UiStarter {
     public static void stopSpringApplication() {
         synchronized (UiStarter.class) {
             if (appState != 2) {
+                muppetPrinterUi.getStatusLabel().setText("Status: Stopped");
+                muppetPrinterUi.getPortLabel().setVisible(false);
+                muppetPrinterUi.getPortTextField().setVisible(true);
                 return;
             }
             appState = 3;
-            statusLabel.setText("Status: Stopping...");
+            muppetPrinterUi.getStatusLabel().setText("Status: Stopping...");
         }
         new Thread(() -> {
             SpringApplication.exit(springContext);
             springContext = null;
             appState = 0;
-            statusLabel.setText("Status: Stopped");
-            portLabel.setVisible(false);
-            portTextField.setVisible(true);
+            muppetPrinterUi.getStatusLabel().setText("Status: Stopped");
+            muppetPrinterUi.getPortLabel().setVisible(false);
+            muppetPrinterUi.getPortTextField().setVisible(true);
         }).start();
+    }
+
+    private static Properties loadAppConfig() {
+        try {
+            YamlPropertiesFactoryBean yaml = new YamlPropertiesFactoryBean();
+            yaml.setResources(new ClassPathResource("application.yml"));
+            Properties properties = yaml.getObject();
+            return properties == null ? new Properties() : properties;
+        } catch (Exception ignored) {
+            return new Properties();
+        }
+    }
+
+    private static String getConfigValue(String key, String defaultValue) {
+        if (springContext != null) {
+            String contextValue = springContext.getEnvironment().getProperty(key);
+            if (contextValue != null) {
+                return contextValue.trim();
+            }
+        }
+        String fileValue = appConfig.getProperty(key);
+        if (fileValue == null) {
+            return defaultValue;
+        }
+        return fileValue.trim();
+    }
+
+    private static String getCurrentWebPort() {
+        String runningPort = muppetPrinterUi.getPortLabel().getText();
+        if (runningPort != null && !runningPort.isBlank()) {
+            return runningPort.trim();
+        }
+        String inputPort = muppetPrinterUi.getPortTextField().getText();
+        if (inputPort != null && !inputPort.isBlank()) {
+            return inputPort.trim();
+        }
+        return port;
+    }
+
+    private static String getLocalHostName() {
+        try {
+            return InetAddress.getLocalHost().getHostName();
+        } catch (Exception ignored) {
+            return "localhost";
+        }
+    }
+
+    private static String getLocalMacAddress() {
+        try {
+            var interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces.hasMoreElements()) {
+                NetworkInterface networkInterface = interfaces.nextElement();
+                if (!networkInterface.isUp() || networkInterface.isLoopback() || networkInterface.isVirtual()) {
+                    continue;
+                }
+                byte[] mac = networkInterface.getHardwareAddress();
+                if (mac == null || mac.length == 0) {
+                    continue;
+                }
+                StringBuilder builder = new StringBuilder();
+                for (int i = 0; i < mac.length; i++) {
+                    if (i > 0) {
+                        builder.append("-");
+                    }
+                    builder.append(String.format("%02X", mac[i]));
+                }
+                return builder.toString();
+            }
+        } catch (Exception ignored) {
+        }
+        return "";
+    }
+
+    private static List<String> getLocalPrinterNames() {
+        List<String> printerNames = new ArrayList<>();
+        try {
+            List<PrinterUtil.PrinterInfo> infos = PrinterUtil.listPrinters();
+            for (PrinterUtil.PrinterInfo info : infos) {
+                if (info != null && info.getName() != null && !info.getName().isBlank()) {
+                    printerNames.add(info.getName());
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        if (printerNames.isEmpty()) {
+            try {
+                for (PrintService service : java.awt.print.PrinterJob.lookupPrintServices()) {
+                    if (service != null && service.getName() != null && !service.getName().isBlank()) {
+                        printerNames.add(service.getName());
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        return printerNames;
+    }
+
+    private static String getExpectedLocalUrl() {
+        return "http://" + getLocalHostName() + ":" + getCurrentWebPort();
+    }
+
+    private static String normalizeServerPrefix(String prefix) {
+        if (prefix == null || prefix.isBlank()) {
+            return "";
+        }
+        String value = prefix.trim();
+        if (!value.startsWith("/")) {
+            value = "/" + value;
+        }
+        while (value.endsWith("/")) {
+            value = value.substring(0, value.length() - 1);
+        }
+        return value;
+    }
+
+    private static URI buildServerUri(String pathAndQuery) {
+        String host = getConfigValue("release.server.host", "");
+        if (host.isBlank()) {
+            return null;
+        }
+        String hostPart = host;
+        if (!hostPart.startsWith("http://") && !hostPart.startsWith("https://")) {
+            hostPart = "https://" + hostPart;
+        }
+        if (hostPart.endsWith("/")) {
+            hostPart = hostPart.substring(0, hostPart.length() - 1);
+        }
+        return URI.create(hostPart + pathAndQuery);
+    }
+
+    private static void openSigninLocalPrinterDialog() {
+        String mac = getLocalMacAddress();
+        String hostName = getLocalHostName();
+        String localUrl = getExpectedLocalUrl();
+        List<String> printers = getLocalPrinterNames();
+        URI signinUri = buildServerUri(normalizeServerPrefix(getConfigValue("release.server.prefix", "")) + "/muppet/signin");
+        SigninLocalPrinterUi.show(muppetPrinterUi.getFrame(), httpClient, signinUri,
+                getConfigValue("release.server.token", ""), mac, hostName, localUrl, printers);
+    }
+
+    private static void openSignedDialog() {
+        String localMac = getLocalMacAddress();
+        String localPcName = getLocalHostName();
+        String localUrl = getExpectedLocalUrl();
+        List<String> localPrinters = getLocalPrinterNames();
+
+        String encodedMac = URLEncoder.encode(localMac, StandardCharsets.UTF_8);
+        String queryPath = "/muppet/signed?mac=" + encodedMac;
+        URI signedUri = buildServerUri(queryPath);
+        SignedUi.show(muppetPrinterUi.getFrame(), httpClient, signedUri, getConfigValue("release.server.token", ""),
+                localMac, localPcName, localUrl, localPrinters);
     }
 }
