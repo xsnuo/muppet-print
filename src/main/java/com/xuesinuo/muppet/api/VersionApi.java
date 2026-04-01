@@ -6,10 +6,10 @@ import org.springframework.stereotype.Component;
 
 import com.xuesinuo.muppet.config.ApiResult;
 import com.xuesinuo.muppet.ui.UiMessageService;
+import com.xuesinuo.muppet.webclient.VersionWebClient;
 import com.xuesinuo.xtool.Np;
 
 import io.vertx.ext.web.Router;
-import io.vertx.ext.web.client.WebClient;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 
@@ -17,7 +17,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class VersionApi {
     private final Router router;
-    private final WebClient webClient;
+    private final VersionWebClient versionWebClient;
     private final UiMessageService uiMessageService;
 
     @PostConstruct
@@ -30,9 +30,9 @@ public class VersionApi {
     public static final String VERSION = "1.0.3";
 
     private void uiVersion() {
-        webClient.get(443, "www.xuesinuo.com", "/muppet-print/version").ssl(true).send()
+        versionWebClient.queryLatestVersion()
                 .onSuccess(resp -> {
-                    if (Np.i(resp.bodyAsString()).notEq(VERSION)) {
+                    if (Np.i(resp).notEq(VERSION)) {
                         uiMessageService.setDefaultMessage("new version: https://github.com/xsnuo/muppet-print/releases");
                     }
                 });
@@ -43,9 +43,9 @@ public class VersionApi {
         router.route("/api/version").handler(http -> {
             HashMap<String, Object> data = new HashMap<>();
             data.put("version", VERSION);
-            webClient.get(443, "www.xuesinuo.com", "/muppet-print/version").ssl(true).send()
-                    .onSuccess(resp -> {
-                        data.put("newVersion", resp.bodyAsString());
+            versionWebClient.queryLatestVersion()
+                    .onSuccess(latestVersion -> {
+                        data.put("newVersion", latestVersion);
                     })
                     .onFailure(error -> {
                         error.printStackTrace();

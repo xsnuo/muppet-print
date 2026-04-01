@@ -57,6 +57,11 @@ Responsibilities:
 - Convert exceptions into the standard `ApiResult` envelope.
 - Forward unexpected errors to a remote logging endpoint.
 
+Route declaration is split by responsibility:
+
+- Shared `/api/*` cross-cutting handlers remain in `ApiRootVerticle`.
+- Functional endpoints are declared in dedicated classes under `com.xuesinuo.muppet.api`.
+
 ### Business API components
 
 `PrinterApi` provides:
@@ -69,6 +74,19 @@ Responsibilities:
 
 - Local application version reporting.
 - Remote latest-version lookup.
+
+### Outbound webclient components
+
+Outbound HTTP calls are encapsulated under `com.xuesinuo.muppet.webclient`.
+
+- `VersionWebClient`: remote latest-version query.
+- `SigninWebClient`: remote signin POST for local printer metadata.
+- `SignedWebClient`: remote signed-printer list query.
+- `LogWebClient`: remote error-log callback push.
+- `ServerAccessConfig`: server host/prefix/token resolution for webclient wrappers.
+
+UI and API/config beans should consume these wrappers instead of direct HTTP client usage.
+Desktop UI should not assemble remote server URL/token details.
 
 ### Print engine
 

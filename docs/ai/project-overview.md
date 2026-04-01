@@ -60,6 +60,10 @@ The API layer exposes endpoints for printer discovery, print submission, PDF sub
 
 Spring Boot manages components, while Vert.x owns the router, web server, request handling, and failure flow.
 
+### Outbound web request module
+
+Outbound HTTP calls are encapsulated in `com.xuesinuo.muppet.webclient` and consumed by API/config/UI beans through injected wrapper classes.
+
 ### Print execution module
 
 The print execution module converts incoming print requests into rendered PDF output and sends that output to the local print stack.

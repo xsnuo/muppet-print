@@ -45,7 +45,7 @@ Web 启动失败时，UI 状态会回到 `Stopped`，并保持端口输入框可
 - `release.server.host`：服务器域名。为空时，Muppet Print 会跳过远端异常日志上报。
 - `release.server.prefix`：访问服务器时统一附加的可选接口前缀，例如 `/api`。
 - `release.server.token`：回调请求头 token，header key 固定为 `Muppet-Token`。
-- `release.signin.enable`：是否启用桌面端打印机注册界面及其服务器调用能力。
+- `release.signin.enable`：仅控制桌面端打印机注册按钮显示，不走服务器动态加载该开关。
 
 当前远端异常回调路径为 `/{prefix}/muppet/log`。
 当 `release.server.prefix` 为空时，实际路径为 `/muppet/log`。

@@ -38,6 +38,13 @@ Improve code quality, harden the AI workflow rules, and align human-facing docum
 - Refactored tray integration so `MuppetPrinterUi` owns main-window show/hide behavior: close button now hides the main UI (without disposing), and tray `Open` re-shows the same main frame.
 - Updated `additional-spring-configuration-metadata.json` with Chinese descriptions and expanded release properties, including an explicit ongoing-maintenance rule in AI memory.
 - Updated server API requirement documents (English/Chinese) with a global unified response envelope rule (`code/message/data`) and printer signin endpoint contracts.
+- Added `com.xuesinuo.muppet.webclient` wrappers to centralize outbound HTTP calls by business function (`VersionWebClient`, `SigninWebClient`, `SignedWebClient`, `LogWebClient`).
+- Refactored `VersionApi` and `ApiRootVerticle` to consume webclient wrappers instead of issuing direct `WebClient` calls.
+- Refactored `SigninLocalPrinterUi` and `SignedUi` to remove `java.net.http.HttpClient` usage and perform requests through injected webclient wrappers.
+- Updated UI request flow so network responses are handled asynchronously and then rendered on the AWT UI thread, avoiding blocking Vert.x EventLoop callbacks.
+- Centralized `release.server.*` property resolution into `ServerAccessConfig` under `com.xuesinuo.muppet.webclient`.
+- Removed `release.server.*` injection and server URL assembly from `MuppetPrinterUi` and `ApiRootVerticle`; they now call webclient wrappers only.
+- Kept `release.signin.enable` as a desktop UI-only toggle for signin button visibility.
 
 ## Current Product Understanding
 

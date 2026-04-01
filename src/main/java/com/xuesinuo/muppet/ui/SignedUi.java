@@ -13,21 +13,23 @@ import java.awt.Panel;
 import java.awt.ScrollPane;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
 import org.springframework.stereotype.Component;
 
+import com.xuesinuo.muppet.webclient.SignedWebClient;
+
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import lombok.RequiredArgsConstructor;
 
 @Component
+@RequiredArgsConstructor
 public class SignedUi {
+
+    private final SignedWebClient signedWebClient;
 
     private Dialog dialog;
     private volatile boolean opened;
@@ -38,22 +40,18 @@ public class SignedUi {
     private Label errorLabel;
     private Panel tablePanel;
 
-    private HttpClient currentHttpClient;
-    private URI currentSignedUri;
-    private String currentToken;
+    private String currentLocalMac;
     private String currentLocalPcName;
     private String currentLocalUrl;
     private List<String> currentLocalPrinters = List.of();
 
-    public void open(Frame owner, HttpClient httpClient, URI signedUri, String token, String localMac,
+    public void open(Frame owner, String localMac,
             String localPcName, String localUrl, List<String> localPrinters) {
         if (dialog == null) {
             initDialog(owner);
         }
 
-        currentHttpClient = httpClient;
-        currentSignedUri = signedUri;
-        currentToken = token;
+        currentLocalMac = localMac;
         currentLocalPcName = localPcName;
         currentLocalUrl = localUrl;
         currentLocalPrinters = localPrinters == null ? List.of() : localPrinters;
@@ -124,32 +122,25 @@ public class SignedUi {
     }
 
     private void loadSignedRecords() {
-        if (currentSignedUri == null) {
-            EventQueue.invokeLater(() -> errorLabel.setText("Server signed URL is not configured."));
-            return;
-        }
-
-        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(currentSignedUri).GET();
-        if (currentToken != null && !currentToken.isBlank()) {
-            requestBuilder.header("Muppet-Token", currentToken);
-        }
-
-        new Thread(() -> {
-            try {
-                HttpResponse<String> response = currentHttpClient.send(requestBuilder.build(), HttpResponse.BodyHandlers.ofString());
-                if (response.statusCode() != 200) {
-                    EventQueue.invokeLater(() -> errorLabel.setText(parseFailureMessage(response.body())));
-                    return;
-                }
-                List<SignedPrintRecord> records = parseSignedRecords(response.body());
-                EventQueue.invokeLater(() -> {
-                    errorLabel.setText("");
-                    renderSignedTable(records);
-                });
-            } catch (Exception ignored) {
-                EventQueue.invokeLater(() -> errorLabel.setText("error"));
-            }
-        }).start();
+        signedWebClient.querySigned(currentLocalMac)
+                .onSuccess(response -> {
+                    if (response.statusCode() != 200) {
+                        EventQueue.invokeLater(() -> errorLabel.setText(parseFailureMessage(response.bodyAsString())));
+                        return;
+                    }
+                    List<SignedPrintRecord> records = parseSignedRecords(response.bodyAsString());
+                    EventQueue.invokeLater(() -> {
+                        errorLabel.setText("");
+                        renderSignedTable(records);
+                    });
+                })
+                .onFailure(error -> EventQueue.invokeLater(() -> {
+                    if (error.getMessage() != null && !error.getMessage().isBlank()) {
+                        errorLabel.setText(error.getMessage());
+                    } else {
+                        errorLabel.setText("error");
+                    }
+                }));
     }
 
     private void renderSignedTable(List<SignedPrintRecord> records) {

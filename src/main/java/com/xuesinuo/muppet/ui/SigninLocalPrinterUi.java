@@ -13,18 +13,20 @@ import java.awt.TextField;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.math.BigDecimal;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.util.List;
 
 import org.springframework.stereotype.Component;
 
+import com.xuesinuo.muppet.webclient.SigninWebClient;
+
 import io.vertx.core.json.JsonObject;
+import lombok.RequiredArgsConstructor;
 
 @Component
+@RequiredArgsConstructor
 public class SigninLocalPrinterUi {
+
+    private final SigninWebClient signinWebClient;
 
     private Dialog dialog;
     private volatile boolean opened;
@@ -41,19 +43,13 @@ public class SigninLocalPrinterUi {
     private String currentMac;
     private String currentHostName;
     private String currentLocalUrl;
-    private URI currentSigninUri;
-    private String currentToken;
-    private HttpClient currentHttpClient;
 
-    public void open(Frame owner, HttpClient httpClient, URI signinUri, String token, String mac,
+    public void open(Frame owner, String mac,
             String hostName, String localUrl, List<String> printers) {
         if (dialog == null) {
             initDialog(owner);
         }
 
-        currentHttpClient = httpClient;
-        currentSigninUri = signinUri;
-        currentToken = token;
         currentMac = mac;
         currentHostName = hostName;
         currentLocalUrl = localUrl;
@@ -176,11 +172,6 @@ public class SigninLocalPrinterUi {
             return;
         }
 
-        if (currentSigninUri == null) {
-            errorLabel.setText("Server signin URL is not configured.");
-            return;
-        }
-
         JsonObject body = new JsonObject();
         body.put("mac", currentMac);
         body.put("pcName", currentHostName);
@@ -189,35 +180,29 @@ public class SigninLocalPrinterUi {
         body.put("pageWidth", new BigDecimal(pageWidthField.getText().trim()));
         body.put("pageHeight", new BigDecimal(pageHeightField.getText().trim()));
 
-        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder(currentSigninUri)
-                .POST(HttpRequest.BodyPublishers.ofString(body.encode()))
-                .header("Content-Type", "application/json");
-        if (currentToken != null && !currentToken.isBlank()) {
-            requestBuilder.header("Muppet-Token", currentToken);
-        }
-
         saveButton.setEnabled(false);
-        new Thread(() -> {
-            try {
-                HttpResponse<String> response = currentHttpClient.send(requestBuilder.build(), HttpResponse.BodyHandlers.ofString());
-                if (response.statusCode() == 200) {
-                    JsonObject responseJson = tryParseJsonObject(response.body());
-                    if (responseJson != null && "SUCCESS".equals(responseJson.getString("code"))) {
-                        EventQueue.invokeLater(this::closeDialog);
-                        return;
+        signinWebClient.signin(body)
+                .onSuccess(response -> {
+                    if (response.statusCode() == 200) {
+                        JsonObject responseJson = tryParseJsonObject(response.bodyAsString());
+                        if (responseJson != null && "SUCCESS".equals(responseJson.getString("code"))) {
+                            EventQueue.invokeLater(this::closeDialog);
+                            return;
+                        }
                     }
-                }
-                EventQueue.invokeLater(() -> {
-                    errorLabel.setText(parseFailureMessage(response.body()));
+                    EventQueue.invokeLater(() -> {
+                        errorLabel.setText(parseFailureMessage(response.bodyAsString()));
+                        saveButton.setEnabled(true);
+                    });
+                })
+                .onFailure(error -> EventQueue.invokeLater(() -> {
+                    if (error.getMessage() != null && !error.getMessage().isBlank()) {
+                        errorLabel.setText(error.getMessage());
+                    } else {
+                        errorLabel.setText("error");
+                    }
                     saveButton.setEnabled(true);
-                });
-            } catch (Exception ignored) {
-                EventQueue.invokeLater(() -> {
-                    errorLabel.setText("error");
-                    saveButton.setEnabled(true);
-                });
-            }
-        }).start();
+                }));
     }
 
     private void closeDialog() {

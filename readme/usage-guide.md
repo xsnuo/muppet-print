@@ -45,7 +45,7 @@ Release builds can configure remote callback behavior through Spring Boot config
 - `release.server.host`: server host name. If blank, Muppet Print skips remote error-log push.
 - `release.server.prefix`: optional API prefix added before callback paths. Example: `/api`.
 - `release.server.token`: token used in callback headers with key `Muppet-Token`.
-- `release.signin.enable`: enables the desktop printer signin UI and related server calls.
+- `release.signin.enable`: controls desktop printer signin button visibility only (no remote dynamic loading for this flag).
 
 Current remote error callback target path is `/{prefix}/muppet/log`.
 If `release.server.prefix` is blank, the effective path is `/muppet/log`.

@@ -1,19 +1,17 @@
 package com.xuesinuo.muppet.config;
 
-import java.util.Map;
 import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.xuesinuo.muppet.api.VersionApi;
 import com.xuesinuo.muppet.config.exceptions.ParamException;
 import com.xuesinuo.muppet.config.exceptions.ServiceException;
 import com.xuesinuo.muppet.ui.UiMessageService;
+import com.xuesinuo.muppet.webclient.LogWebClient;
 
 import io.vertx.core.json.Json;
 import io.vertx.ext.web.Router;
-import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.handler.BodyHandler;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -25,17 +23,8 @@ import lombok.extern.slf4j.Slf4j;
 public class ApiRootVerticle {
 
     private final Router router;
-    private final WebClient webClient;
+    private final LogWebClient logWebClient;
     private final UiMessageService uiMessageService;
-
-    @Value("${release.server.host:}")
-    private String releaseServerHost;
-
-    @Value("${release.server.prefix:}")
-    private String releaseServerPrefix;
-
-    @Value("${release.server.token:}")
-    private String releaseServerToken;
 
     @PostConstruct
     public void start() {
@@ -81,45 +70,18 @@ public class ApiRootVerticle {
                     } else {
                         logBuilder.append("Unknown failure\n");
                     }
-                    String serverHost = safeTrim(releaseServerHost);
-                    if (!serverHost.isEmpty()) {
-                        try {
-                            var request = webClient.post(443, serverHost, buildReleaseLogPath()).ssl(true);
-                            String serverToken = safeTrim(releaseServerToken);
-                            if (!serverToken.isEmpty()) {
-                                request.putHeader("Muppet-Token", serverToken);
-                            }
-                            request.sendJson(Map.of(
-                                    "level", "error",
-                                    "version", VersionApi.VERSION,
-                                    "message", logBuilder.toString()))
-                                    .onFailure(error -> uiMessageService.showMessage("send error log failed."));
-                        } catch (Exception error) {
-                            uiMessageService.showMessage("send error log failed.");
-                        }
+                    try {
+                        logWebClient.sendErrorLog(
+                                VersionApi.VERSION,
+                                logBuilder.toString())
+                                .onFailure(error -> uiMessageService.showMessage("send error log failed."));
+                    } catch (Exception error) {
+                        uiMessageService.showMessage("send error log failed.");
                     }
                     apiResult.setCode(ApiResultCode.SYSTEM_ERROR);
                     apiResult.setMessage("System error (" + errorId + ").");
                     http.response().setStatusCode(500).send(Json.encode(apiResult));
                 });
         // router.errorHandler(500, http -> {});
-    }
-
-    private String buildReleaseLogPath() {
-        String prefix = safeTrim(releaseServerPrefix);
-        if (prefix.isEmpty()) {
-            return "/muppet/log";
-        }
-        if (!prefix.startsWith("/")) {
-            prefix = "/" + prefix;
-        }
-        while (prefix.endsWith("/")) {
-            prefix = prefix.substring(0, prefix.length() - 1);
-        }
-        return prefix + "/muppet/log";
-    }
-
-    private String safeTrim(String value) {
-        return value == null ? "" : value.trim();
     }
 }

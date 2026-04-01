@@ -33,6 +33,10 @@
 - Error handling is centralized in Vert.x route failure handling rather than distributed controller advice.
 - Release callback server connectivity depends on `release.server.*` properties, and callback push is skipped when `release.server.host` is blank.
 - `SystemException` exists but is not distinctly handled in the current API root failure flow.
+- Functional Web API routes should be declared in classes under `com.xuesinuo.muppet.api`; `ApiRootVerticle` is reserved for shared `/api/*` cross-cutting handlers.
+- Outbound HTTP requests should use Vert.x `WebClient` and be encapsulated in `com.xuesinuo.muppet.webclient` by functional responsibility.
+- `release.server.*` access configuration should be resolved inside webclient-layer components, not in desktop UI beans.
+- When using Vert.x async callbacks, avoid blocking EventLoop threads; UI updates should render from async results via UI-thread dispatch.
 
 ## Packaging Constraints
 

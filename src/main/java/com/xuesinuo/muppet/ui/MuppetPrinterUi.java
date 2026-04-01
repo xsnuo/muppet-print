@@ -18,10 +18,6 @@ import java.io.IOException;
 import java.net.BindException;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
-import java.net.URI;
-import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.nio.charset.StandardCharsets;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
@@ -67,17 +63,6 @@ public class MuppetPrinterUi {
 
     @Value("${release.signin.enable:false}")
     private boolean signinEnable;
-
-    @Value("${release.server.host:}")
-    private String releaseServerHost;
-
-    @Value("${release.server.prefix:}")
-    private String releaseServerPrefix;
-
-    @Value("${release.server.token:}")
-    private String releaseServerToken;
-
-    private final HttpClient httpClient = HttpClient.newBuilder().build();
 
     private final Frame frame = new Frame();
     private final Label portTitelLabel = new Label("Web Port:");
@@ -325,8 +310,7 @@ public class MuppetPrinterUi {
         String hostName = getLocalHostName();
         String localUrl = getExpectedLocalUrl();
         List<String> printers = getLocalPrinterNames();
-        URI signinUri = buildServerUri(normalizeServerPrefix(releaseServerPrefix) + "/muppet/signin");
-        signinLocalPrinterUi.open(frame, httpClient, signinUri, releaseServerToken, mac, hostName, localUrl, printers);
+        signinLocalPrinterUi.open(frame, mac, hostName, localUrl, printers);
     }
 
     private void openSignedDialog() {
@@ -334,9 +318,7 @@ public class MuppetPrinterUi {
         String localPcName = getLocalHostName();
         String localUrl = getExpectedLocalUrl();
         List<String> localPrinters = getLocalPrinterNames();
-        String encodedMac = URLEncoder.encode(localMac, StandardCharsets.UTF_8);
-        URI signedUri = buildServerUri("/muppet/signed?mac=" + encodedMac);
-        signedUi.open(frame, httpClient, signedUri, releaseServerToken, localMac, localPcName, localUrl, localPrinters);
+        signedUi.open(frame, localMac, localPcName, localUrl, localPrinters);
     }
 
     private void shutdownApplication() {
@@ -423,39 +405,6 @@ public class MuppetPrinterUi {
 
     private String getExpectedLocalUrl() {
         return "http://" + getLocalHostName() + ":" + getCurrentWebPort();
-    }
-
-    private String normalizeServerPrefix(String prefix) {
-        if (prefix == null || prefix.isBlank()) {
-            return "";
-        }
-        String value = prefix.trim();
-        if (!value.startsWith("/")) {
-            value = "/" + value;
-        }
-        while (value.endsWith("/")) {
-            value = value.substring(0, value.length() - 1);
-        }
-        return value;
-    }
-
-    private URI buildServerUri(String pathAndQuery) {
-        String host = safeTrim(releaseServerHost);
-        if (host.isBlank()) {
-            return null;
-        }
-        String hostPart = host;
-        if (!hostPart.startsWith("http://") && !hostPart.startsWith("https://")) {
-            hostPart = "https://" + hostPart;
-        }
-        if (hostPart.endsWith("/")) {
-            hostPart = hostPart.substring(0, hostPart.length() - 1);
-        }
-        return URI.create(hostPart + pathAndQuery);
-    }
-
-    private String safeTrim(String value) {
-        return value == null ? "" : value.trim();
     }
 
     private int getHalfFontSize() {

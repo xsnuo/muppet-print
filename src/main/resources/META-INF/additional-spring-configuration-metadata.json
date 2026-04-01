@@ -18,7 +18,7 @@
         {
             "name": "release.signin.enable",
             "type": "java.lang.Boolean",
-            "description": "是否开启打印机注册功能。true 开启后在桌面界面显示注册相关按钮。Ex: true"
+            "description": "是否开启打印机注册功能。true 时仅控制桌面界面注册按钮显示，不通过服务器接口动态加载。Ex: true"
         }
     ]
 }
