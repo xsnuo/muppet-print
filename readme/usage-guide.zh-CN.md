@@ -12,7 +12,7 @@
 
 ## 桌面 UI 功能
 
-当前桌面界面提供：
+桌面界面提供：
 
 - 端口输入。
 - 启动与停止按钮。
@@ -21,7 +21,7 @@
 - 错误消息显示。
 - 支持平台上的开机自启开关。
 - 支持平台上的托盘最小化行为。
-- 单实例启动拦截。重复启动时会由本地文件锁直接拦截，并以“已在运行”的提示后退出当前进程。
+- 单实例启动拦截。重复启动时会由本地文件锁直接拦截，并以“已在运行”的提示后退出该进程。
 
 ## 启动服务
 
@@ -35,7 +35,7 @@ mvn spring-boot:run
 
 启动打包后的应用后，确认 UI 显示为运行状态，此时嵌入式 HTTP 服务会监听已配置端口。
 
-如果当前配置的 Web 端口已被其他应用占用，Muppet Print 不会把它当成重复运行，而是保持 UI 打开，并用英文提示用户修改端口后重新启动服务。
+如果配置的 Web 端口已被其他应用占用，Muppet Print 不会把它当成重复运行，而是保持 UI 打开，并用英文提示用户修改端口后重新启动服务。
 Web 启动失败时，UI 状态会回到 `Stopped`，并保持端口输入框可编辑。
 
 ## Release 服务器配置
@@ -43,19 +43,20 @@ Web 启动失败时，UI 状态会回到 `Stopped`，并保持端口输入框可
 发行版可通过 Spring Boot 配置控制远端回调行为：
 
 - `release.server.host`：服务器域名。为空时，Muppet Print 会跳过远端异常日志上报。
-- `release.server.prefix`：访问服务器时统一附加的可选接口前缀，例如 `/api`。
 - `release.server.token`：回调请求头 token，header key 固定为 `Muppet-Token`。
 - `release.signin.enable`：仅控制桌面端打印机注册按钮显示，不走服务器动态加载该开关。
 
-当前远端异常回调路径为 `/{prefix}/muppet/log`。
-当 `release.server.prefix` 为空时，实际路径为 `/muppet/log`。
+远端异常回调路径固定为 `/muppet/log`，并直接拼接在 `release.server.host` 之后。
+`release.server.host` 可包含基础路径，例如 `http://host/api`，实际回调 URL 为 `http://host/api/muppet/log`。
 服务器接口契约详见 [server-api-requirements.zh-CN.md](server-api-requirements.zh-CN.md)。
 
 启用打印机注册后：
 
-- `Signin local printer` 会打开注册表单，并提交到 `POST /{prefix}/muppet/signin`。
+- `Signin local printer` 会先调用 `GET /muppet/groups` 加载分组；若分组加载失败，则阻止提交并显示错误。
+- `Signin local printer` 会打开注册表单，并提交到 `POST /muppet/signin`。
 - 注册表单会先在本地校验打印机选择以及 page width/page height，再决定是否发起服务器请求。
-- `Signed` 会打开当前机器已注册打印机列表，数据来自 `GET /muppet/signed?mac=<本机mac>`。
+- `Signed` 会打开本机已注册打印机列表，数据来自 `GET /muppet/signed?mac=<本机mac>`。
+- 已注册打印机列表新增 `group` 列，并基于 `GET /muppet/groups` 的分组选项把 value 映射为展示名称；映射不到时显示原值。
 - 已注册打印机列表会将与本机不一致的关键字段用红字标出，便于操作员检查。
 
 ## 对接流程
@@ -88,7 +89,7 @@ Web 启动失败时，UI 状态会回到 `Stopped`，并保持端口输入框可
 
 - 尽量将服务部署在打印机、字体环境都稳定的工作站上。
 - 如果外部系统依赖打印机名称，请保持打印机名称稳定。
-- 当前优先用于本地或可信局域网环境。
+- 建议优先用于本地或可信局域网环境。
 - 生产环境中请在真实操作系统和真实打印机型号上验证 HTML 模板效果。
 
 ## 常见排查提示

@@ -20,7 +20,7 @@ Improve code quality, harden the AI workflow rules, and align human-facing docum
 - Changed web-port conflict handling so the UI remains open and shows an English message instead of treating the conflict as duplicate startup.
 - Changed UI readiness transition so `Status: Ready !` is set only after Vert.x HTTP listen succeeds; if startup fails, UI now returns to `Status: Stopped` and keeps web port input editable.
 - Moved remote error-log callback host, path prefix, and token to Spring Boot configuration under `release.server.*`.
-- Changed remote error-log callback route to `/{prefix}/muppet/log` and moved token passing from request body into `Muppet-Token` header.
+- Changed remote error-log callback route to `/muppet/log` (resolved from `release.server.host`) and moved token passing from request body into `Muppet-Token` header.
 - Added bilingual human-facing server API requirement documents for release callback contracts.
 - Added `release.signin.enable` configuration and desktop UI entry buttons for printer signin management.
 - Implemented desktop "Signin local printer" form flow with local device/printer prefill, numeric validation, and server POST `/muppet/signin` handling.
@@ -45,6 +45,21 @@ Improve code quality, harden the AI workflow rules, and align human-facing docum
 - Centralized `release.server.*` property resolution into `ServerAccessConfig` under `com.xuesinuo.muppet.webclient`.
 - Removed `release.server.*` injection and server URL assembly from `MuppetPrinterUi` and `ApiRootVerticle`; they now call webclient wrappers only.
 - Kept `release.signin.enable` as a desktop UI-only toggle for signin button visibility.
+- Reworked human-facing API and usage documents to remove historical interface wording and keep endpoint-specific request details inside the corresponding endpoint sections.
+- Fixed signed-printer query callback path to include `/{prefix}` and aligned server docs accordingly.
+- Reordered server API requirement docs so unified response envelope is documented before specific callback endpoints.
+- Added per-field documentation for callback request/response payloads in server API requirement docs.
+- Updated `SignedPrintRecord` to a JavaBean style DTO with `@Data`, private fields, and Chinese JavaDoc field descriptions.
+- Changed `/muppet/signed` callback response key from `prints` to `printers` and aligned code/docs.
+- Moved callback response parsing, success/failure handling, and result-typing into webclient layer with unified `Future<WebClientResult<T>>` return shape.
+- Removed `release.server.prefix`; callback URLs are now resolved by appending `/muppet/*` endpoints directly to `release.server.host` (which may include a base path).
+- Added `GET /muppet/groups` callback integration and wired desktop signin flow to require group loading before submit.
+- Added `group` field to signin/signed callback payload handling and added group label mapping column in signed-printer UI.
+- Added unified server-api observability logs in webclient wrappers using `@Slf4j`: request/response payloads now log at info level, and all non-success outcomes log at error level.
+- Added signed-printer delete flow backed by `POST /muppet/signout` with payload `{mac, printerName, group}`, and refreshes signed list by reloading `/muppet/signed` after successful signout.
+- Updated signed-printer desktop page layout: widened `pc name` and `url` columns, renamed `page width/page height` headers to `width/height`, widened dialog to fit all columns, increased table area height, and relies on scrollable table viewport for overflow rows.
+- Added URL mode toggle button in signin UI (`use IP` / `use pc name`): default uses pc-name URL, click toggles URL text to local IP URL and back, and submit now sends the currently displayed URL value.
+- Updated signin URL toggle to `use IP` / `use PC`, made URL textbox editable by operator, and added save-time URL validation (`http://` or `https://` prefix plus non-blank content after protocol).
 
 ## Current Product Understanding
 

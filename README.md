@@ -72,15 +72,15 @@ Business System -> HTTP request -> Muppet Print -> Local Printer
 
 This avoids relying on `window.print()` and gives external systems a stable local print bridge.
 
-## Current Scope
+## Scope
 
-The current codebase is optimized for:
+The codebase is optimized for:
 
 - local or trusted LAN use
 - silent printing workflows
 - desktop-packaged deployment
 
-It is not currently designed as a public internet-facing print platform.
+It is not designed as a public internet-facing print platform.
 
 ## Development Notes
 

@@ -13,13 +13,19 @@ import java.awt.TextField;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.math.BigDecimal;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.stereotype.Component;
 
+import com.xuesinuo.muppet.webclient.GroupOption;
+import com.xuesinuo.muppet.webclient.GroupWebClient;
+import com.xuesinuo.muppet.webclient.SigninPrinterRequest;
 import com.xuesinuo.muppet.webclient.SigninWebClient;
 
-import io.vertx.core.json.JsonObject;
 import lombok.RequiredArgsConstructor;
 
 @Component
@@ -27,22 +33,28 @@ import lombok.RequiredArgsConstructor;
 public class SigninLocalPrinterUi {
 
     private final SigninWebClient signinWebClient;
+    private final GroupWebClient groupWebClient;
 
     private Dialog dialog;
     private volatile boolean opened;
 
+    private Choice groupChoice;
     private TextField macField;
     private TextField pcNameField;
     private TextField urlField;
     private TextField pageWidthField;
     private TextField pageHeightField;
     private Choice printerChoice;
+    private Button urlModeButton;
     private Label errorLabel;
     private Button saveButton;
 
     private String currentMac;
     private String currentHostName;
     private String currentLocalUrl;
+    private String currentIpUrl;
+    private boolean useIpUrl;
+    private List<GroupOption> currentGroupOptions = List.of();
 
     public void open(Frame owner, String mac,
             String hostName, String localUrl, List<String> printers) {
@@ -53,10 +65,13 @@ public class SigninLocalPrinterUi {
         currentMac = mac;
         currentHostName = hostName;
         currentLocalUrl = localUrl;
+        currentIpUrl = buildIpUrl(localUrl);
+        useIpUrl = false;
+        currentGroupOptions = new ArrayList<>();
 
         macField.setText(mac == null ? "" : mac);
         pcNameField.setText(hostName == null ? "" : hostName);
-        urlField.setText(localUrl == null ? "" : localUrl);
+        updateUrlModeUi();
         pageWidthField.setText("");
         pageHeightField.setText("");
         errorLabel.setText("");
@@ -72,7 +87,12 @@ public class SigninLocalPrinterUi {
         }
         printerChoice.select(0);
 
-        saveButton.setEnabled(true);
+        groupChoice.removeAll();
+        groupChoice.add("Loading groups...");
+        groupChoice.select(0);
+
+        saveButton.setEnabled(false);
+        loadGroups();
         opened = true;
         dialog.setLocationRelativeTo(owner);
         dialog.setVisible(true);
@@ -100,55 +120,98 @@ public class SigninLocalPrinterUi {
         Insets insets = dialog.getInsets();
         int titleBarHeight = insets.top;
         int hfs = getHalfFontSize();
-        int dialogWidth = Math.max(82 * hfs, 700);
-        int dialogHeight = Math.max(43 * hfs, 420);
+        int dialogWidth = Math.max(82 * hfs, 560);
+        int dialogHeight = Math.max(44 * hfs, 350);
         dialog.setSize(dialogWidth, dialogHeight);
 
+        groupChoice = new Choice();
         macField = createReadonlyField("");
         pcNameField = createReadonlyField("");
-        urlField = createReadonlyField("");
+        urlField = new TextField();
         pageWidthField = new TextField();
         pageHeightField = new TextField();
         printerChoice = new Choice();
 
-        addLabel(dialog, "mac", 2, 1, 14, hfs, titleBarHeight);
-        setBounds(macField, 18, 1, 60, hfs, titleBarHeight);
+        addLabel(dialog, "group", 2, 1, 14, hfs, titleBarHeight);
+        setBounds(groupChoice, 18, 1, 60, hfs, titleBarHeight);
+        dialog.add(groupChoice);
+
+        addLabel(dialog, "mac", 2, 6, 14, hfs, titleBarHeight);
+        setBounds(macField, 18, 6, 60, hfs, titleBarHeight);
         dialog.add(macField);
 
-        addLabel(dialog, "pc name", 2, 6, 14, hfs, titleBarHeight);
-        setBounds(pcNameField, 18, 6, 60, hfs, titleBarHeight);
+        addLabel(dialog, "pc name", 2, 11, 14, hfs, titleBarHeight);
+        setBounds(pcNameField, 18, 11, 60, hfs, titleBarHeight);
         dialog.add(pcNameField);
 
-        addLabel(dialog, "printer name", 2, 11, 14, hfs, titleBarHeight);
-        setBounds(printerChoice, 18, 11, 60, hfs, titleBarHeight);
+        addLabel(dialog, "printer name", 2, 16, 14, hfs, titleBarHeight);
+        setBounds(printerChoice, 18, 16, 60, hfs, titleBarHeight);
         dialog.add(printerChoice);
 
-        addLabel(dialog, "url", 2, 16, 14, hfs, titleBarHeight);
-        setBounds(urlField, 18, 16, 60, hfs, titleBarHeight);
+        addLabel(dialog, "url", 2, 21, 14, hfs, titleBarHeight);
+        setBounds(urlField, 18, 21, 44, hfs, titleBarHeight);
         dialog.add(urlField);
 
-        addLabel(dialog, "page width", 2, 21, 14, hfs, titleBarHeight);
-        setBounds(pageWidthField, 18, 21, 16, hfs, titleBarHeight);
+        urlModeButton = new Button("use IP");
+        urlModeButton.setBounds(64 * hfs, 21 * hfs + titleBarHeight, 14 * hfs, 4 * hfs);
+        urlModeButton.addActionListener(e -> toggleUrlMode());
+        dialog.add(urlModeButton);
+
+        addLabel(dialog, "page width", 2, 26, 14, hfs, titleBarHeight);
+        setBounds(pageWidthField, 18, 26, 16, hfs, titleBarHeight);
         dialog.add(pageWidthField);
 
-        addLabel(dialog, "page height", 38, 21, 16, hfs, titleBarHeight);
-        setBounds(pageHeightField, 56, 21, 16, hfs, titleBarHeight);
+        addLabel(dialog, "page height", 38, 26, 16, hfs, titleBarHeight);
+        setBounds(pageHeightField, 56, 26, 16, hfs, titleBarHeight);
         dialog.add(pageHeightField);
 
         errorLabel = new Label("");
         errorLabel.setForeground(Color.RED);
-        errorLabel.setBounds(2 * hfs, 26 * hfs + titleBarHeight, 76 * hfs, 4 * hfs);
+        errorLabel.setBounds(2 * hfs, 31 * hfs + titleBarHeight, 76 * hfs, 4 * hfs);
         dialog.add(errorLabel);
 
         saveButton = new Button("Save");
-        saveButton.setBounds(50 * hfs, 31 * hfs + titleBarHeight, 12 * hfs, 4 * hfs);
+        saveButton.setBounds(50 * hfs, 36 * hfs + titleBarHeight, 12 * hfs, 4 * hfs);
         saveButton.addActionListener(e -> handleSave());
         dialog.add(saveButton);
 
         Button cancelButton = new Button("Cancel");
-        cancelButton.setBounds(64 * hfs, 31 * hfs + titleBarHeight, 12 * hfs, 4 * hfs);
+        cancelButton.setBounds(64 * hfs, 36 * hfs + titleBarHeight, 12 * hfs, 4 * hfs);
         cancelButton.addActionListener(e -> closeDialog());
         dialog.add(cancelButton);
+    }
+
+    private void loadGroups() {
+        groupWebClient.queryGroups()
+                .onSuccess(result -> EventQueue.invokeLater(() -> {
+                    if (!result.isSuccess() || result.getData() == null || result.getData().isEmpty()) {
+                        errorLabel.setText("Load groups failed.");
+                        saveButton.setEnabled(false);
+                        groupChoice.removeAll();
+                        groupChoice.add("Load groups failed");
+                        groupChoice.select(0);
+                        return;
+                    }
+                    currentGroupOptions = result.getData();
+                    groupChoice.removeAll();
+                    groupChoice.add("Please select group");
+                    for (GroupOption groupOption : currentGroupOptions) {
+                        if (groupOption.getLabel() != null && !groupOption.getLabel().isBlank()) {
+                            groupChoice.add(groupOption.getLabel());
+                        }
+                    }
+                    if (groupChoice.getItemCount() <= 1) {
+                        errorLabel.setText("Load groups failed.");
+                        saveButton.setEnabled(false);
+                        groupChoice.removeAll();
+                        groupChoice.add("Load groups failed");
+                        groupChoice.select(0);
+                        return;
+                    }
+                    groupChoice.select(0);
+                    saveButton.setEnabled(true);
+                    errorLabel.setText("");
+                }));
     }
 
     private void handleSave() {
@@ -157,6 +220,18 @@ public class SigninLocalPrinterUi {
         String printerError = validatePrinter(printerChoice);
         if (printerError != null) {
             errorLabel.setText(printerError);
+            return;
+        }
+
+        String groupError = validateGroup(groupChoice);
+        if (groupError != null) {
+            errorLabel.setText(groupError);
+            return;
+        }
+
+        String urlError = validateUrl(urlField.getText());
+        if (urlError != null) {
+            errorLabel.setText(urlError);
             return;
         }
 
@@ -172,37 +247,27 @@ public class SigninLocalPrinterUi {
             return;
         }
 
-        JsonObject body = new JsonObject();
-        body.put("mac", currentMac);
-        body.put("pcName", currentHostName);
-        body.put("printerName", printerChoice.getSelectedItem());
-        body.put("url", currentLocalUrl);
-        body.put("pageWidth", new BigDecimal(pageWidthField.getText().trim()));
-        body.put("pageHeight", new BigDecimal(pageHeightField.getText().trim()));
+        SigninPrinterRequest requestBody = new SigninPrinterRequest();
+        requestBody.setGroup(resolveSelectedGroupValue());
+        requestBody.setMac(currentMac);
+        requestBody.setPcName(currentHostName);
+        requestBody.setPrinterName(printerChoice.getSelectedItem());
+        requestBody.setUrl(urlField.getText() == null ? "" : urlField.getText().trim());
+        requestBody.setPageWidth(new BigDecimal(pageWidthField.getText().trim()));
+        requestBody.setPageHeight(new BigDecimal(pageHeightField.getText().trim()));
 
         saveButton.setEnabled(false);
-        signinWebClient.signin(body)
+        signinWebClient.signin(requestBody)
                 .onSuccess(response -> {
-                    if (response.statusCode() == 200) {
-                        JsonObject responseJson = tryParseJsonObject(response.bodyAsString());
-                        if (responseJson != null && "SUCCESS".equals(responseJson.getString("code"))) {
-                            EventQueue.invokeLater(this::closeDialog);
-                            return;
-                        }
+                    if (response.isSuccess()) {
+                        EventQueue.invokeLater(this::closeDialog);
+                        return;
                     }
                     EventQueue.invokeLater(() -> {
-                        errorLabel.setText(parseFailureMessage(response.bodyAsString()));
+                        errorLabel.setText(parseErrorMessage(response.getMessage()));
                         saveButton.setEnabled(true);
                     });
-                })
-                .onFailure(error -> EventQueue.invokeLater(() -> {
-                    if (error.getMessage() != null && !error.getMessage().isBlank()) {
-                        errorLabel.setText(error.getMessage());
-                    } else {
-                        errorLabel.setText("error");
-                    }
-                    saveButton.setEnabled(true);
-                }));
+                });
     }
 
     private void closeDialog() {
@@ -223,6 +288,30 @@ public class SigninLocalPrinterUi {
             return "Please select printer name.";
         }
         return null;
+    }
+
+    private String validateGroup(Choice choice) {
+        if (choice.getSelectedIndex() <= 0) {
+            return "Please select group.";
+        }
+        String value = resolveSelectedGroupValue();
+        if (value == null || value.isBlank()) {
+            return "Please select group.";
+        }
+        return null;
+    }
+
+    private String resolveSelectedGroupValue() {
+        int selectedIndex = groupChoice.getSelectedIndex();
+        if (selectedIndex <= 0) {
+            return "";
+        }
+        int optionIndex = selectedIndex - 1;
+        if (optionIndex < 0 || optionIndex >= currentGroupOptions.size()) {
+            return "";
+        }
+        String value = currentGroupOptions.get(optionIndex).getValue();
+        return value == null ? "" : value;
     }
 
     private String validatePageNumber(String fieldName, String value) {
@@ -251,25 +340,90 @@ public class SigninLocalPrinterUi {
         return Character.toUpperCase(text.charAt(0)) + text.substring(1);
     }
 
-    private String parseFailureMessage(String body) {
-        JsonObject jsonObject = tryParseJsonObject(body);
-        if (jsonObject != null) {
-            String message = jsonObject.getString("message");
-            if (message != null && !message.isBlank()) {
-                return message;
-            }
+    private String parseErrorMessage(String message) {
+        if (message == null || message.isBlank()) {
+            return "error";
         }
-        return "error";
+        return message;
     }
 
-    private JsonObject tryParseJsonObject(String body) {
-        if (body == null || body.isBlank()) {
-            return null;
+    private void toggleUrlMode() {
+        useIpUrl = !useIpUrl;
+        updateUrlModeUi();
+    }
+
+    private void updateUrlModeUi() {
+        String text = useIpUrl ? currentIpUrl : currentLocalUrl;
+        urlField.setText(text == null ? "" : text);
+        if (urlModeButton != null) {
+            urlModeButton.setLabel(useIpUrl ? "use PC" : "use IP");
+        }
+    }
+
+    private String validateUrl(String value) {
+        if (value == null || value.isBlank()) {
+            return "Please enter url.";
+        }
+        String trimmed = value.trim();
+        String prefix;
+        if (trimmed.startsWith("http://")) {
+            prefix = "http://";
+        } else if (trimmed.startsWith("https://")) {
+            prefix = "https://";
+        } else {
+            return "Url must start with http:// or https://.";
+        }
+        String rest = trimmed.substring(prefix.length());
+        if (rest.isBlank()) {
+            return "Url must include non-blank content after protocol.";
+        }
+        return null;
+    }
+
+    private String buildIpUrl(String sourceUrl) {
+        if (sourceUrl == null || sourceUrl.isBlank()) {
+            return sourceUrl;
         }
         try {
-            return new JsonObject(body);
+            URI uri = URI.create(sourceUrl.trim());
+            String scheme = uri.getScheme() == null || uri.getScheme().isBlank() ? "http" : uri.getScheme();
+            String ip = resolveLocalIp();
+            int port = uri.getPort();
+            if (port > 0) {
+                return scheme + "://" + ip + ":" + port;
+            }
+            return scheme + "://" + ip;
         } catch (Exception ignored) {
-            return null;
+            return sourceUrl;
+        }
+    }
+
+    private String resolveLocalIp() {
+        try {
+            var interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces.hasMoreElements()) {
+                NetworkInterface networkInterface = interfaces.nextElement();
+                if (!networkInterface.isUp() || networkInterface.isLoopback() || networkInterface.isVirtual()) {
+                    continue;
+                }
+                var addresses = networkInterface.getInetAddresses();
+                while (addresses.hasMoreElements()) {
+                    InetAddress address = addresses.nextElement();
+                    if (address.isLoopbackAddress() || address.isLinkLocalAddress()) {
+                        continue;
+                    }
+                    String hostAddress = address.getHostAddress();
+                    if (hostAddress != null && hostAddress.contains(".")) {
+                        return hostAddress;
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        try {
+            return InetAddress.getLocalHost().getHostAddress();
+        } catch (Exception ignored) {
+            return "127.0.0.1";
         }
     }
 

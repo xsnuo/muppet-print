@@ -74,7 +74,11 @@ public class ApiRootVerticle {
                         logWebClient.sendErrorLog(
                                 VersionApi.VERSION,
                                 logBuilder.toString())
-                                .onFailure(error -> uiMessageService.showMessage("send error log failed."));
+                                .onSuccess(result -> {
+                                    if (!result.isSuccess()) {
+                                        uiMessageService.showMessage("send error log failed.");
+                                    }
+                                });
                     } catch (Exception error) {
                         uiMessageService.showMessage("send error log failed.");
                     }

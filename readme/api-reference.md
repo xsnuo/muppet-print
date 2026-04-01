@@ -4,7 +4,7 @@ Back to entry documents: [../README.md](../README.md) | [../README.zh-CN.md](../
 
 ## Overview
 
-All current APIs are exposed under `/api/*`.
+All APIs are exposed under `/api/*`.
 
 Typical local base URL:
 
@@ -201,8 +201,8 @@ curl http://127.0.0.1:58080/api/version
   "code": "SUCCESS",
   "message": null,
   "data": {
-    "version": "1.0.3",
-    "newVersion": "1.0.3"
+    "version": "1.0.4",
+    "newVersion": "1.0.4"
   }
 }
 ```

@@ -27,12 +27,12 @@ public class VersionApi {
     }
 
     /** 当前版本 */
-    public static final String VERSION = "1.0.3";
+    public static final String VERSION = "1.0.4";
 
     private void uiVersion() {
         versionWebClient.queryLatestVersion()
                 .onSuccess(resp -> {
-                    if (Np.i(resp).notEq(VERSION)) {
+                    if (resp.isSuccess() && Np.i(resp.getData()).notEq(VERSION)) {
                         uiMessageService.setDefaultMessage("new version: https://github.com/xsnuo/muppet-print/releases");
                     }
                 });
@@ -44,11 +44,10 @@ public class VersionApi {
             HashMap<String, Object> data = new HashMap<>();
             data.put("version", VERSION);
             versionWebClient.queryLatestVersion()
-                    .onSuccess(latestVersion -> {
-                        data.put("newVersion", latestVersion);
-                    })
-                    .onFailure(error -> {
-                        error.printStackTrace();
+                    .onSuccess(result -> {
+                        if (result.isSuccess()) {
+                            data.put("newVersion", result.getData());
+                        }
                     })
                     .onComplete(resp -> {
                         http.response().write(ApiResult.ok(data));

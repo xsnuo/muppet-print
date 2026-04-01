@@ -1,7 +1,6 @@
 release:
   signin:
-    enable: true
+    enable: false
   server:
-    host: http://www.xuesinuo.com
-    prefix: /api
-    token: xuesinuo
+    host: ''
+    token: ''

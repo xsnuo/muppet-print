@@ -11,37 +11,37 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class SigninWebClient {
+public class SignoutWebClient {
 
     private final WebClient webClient;
     private final ServerAccessConfig serverAccessConfig;
 
-    public Future<WebClientResult<Void>> signin(SigninPrinterRequest requestBody) {
+    public Future<WebClientResult<Void>> signout(SignoutPrinterRequest requestBody) {
         if (!serverAccessConfig.isConfigured()) {
-            log.error("server-api signin failed: release.server.host is not configured");
-            return Future.succeededFuture(WebClientResult.fail("SYSTEM_ERROR", "Server signin URL is not configured."));
+            log.error("server-api signout failed: release.server.host is not configured");
+            return Future.succeededFuture(WebClientResult.fail("SYSTEM_ERROR", "Server signout URL is not configured."));
         }
-        String url = serverAccessConfig.signinUrl();
-        var request = webClient.postAbs(serverAccessConfig.signinUrl())
+        String url = serverAccessConfig.signoutUrl();
+        var request = webClient.postAbs(url)
                 .putHeader("Content-Type", "application/json");
         String token = serverAccessConfig.token();
         if (!token.isBlank()) {
             request.putHeader("Muppet-Token", token);
         }
         JsonObject body = JsonObject.mapFrom(requestBody);
-        log.info("server-api signin request: url={}, body={}", url, body.encode());
+        log.info("server-api signout request: url={}, body={}", url, body.encode());
         return request.sendJsonObject(body)
                 .map(response -> {
                     String responseBody = response.bodyAsString();
-                    log.info("server-api signin response: status={}, body={}", response.statusCode(), responseBody);
+                    log.info("server-api signout response: status={}, body={}", response.statusCode(), responseBody);
                     WebClientResult<Void> result = parseEnvelopeNoData(response.statusCode(), responseBody);
                     if (!result.isSuccess()) {
-                        log.error("server-api signin business failed: code={}, message={}", result.getCode(), result.getMessage());
+                        log.error("server-api signout business failed: code={}, message={}", result.getCode(), result.getMessage());
                     }
                     return result;
                 })
                 .recover(error -> {
-                    log.error("server-api signin request exception", error);
+                    log.error("server-api signout request exception", error);
                     return Future.succeededFuture(WebClientResult.fail("SYSTEM_ERROR", error.getMessage()));
                 });
     }

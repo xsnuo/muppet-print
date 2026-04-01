@@ -36,6 +36,8 @@
 - Functional Web API routes should be declared in classes under `com.xuesinuo.muppet.api`; `ApiRootVerticle` is reserved for shared `/api/*` cross-cutting handlers.
 - Outbound HTTP requests should use Vert.x `WebClient` and be encapsulated in `com.xuesinuo.muppet.webclient` by functional responsibility.
 - `release.server.*` access configuration should be resolved inside webclient-layer components, not in desktop UI beans.
+- Server-side callback URLs should be composed by appending fixed `/muppet/*` endpoint paths to `release.server.host`.
+- JavaBean classes should use private fields and Lombok `@Data`, and corresponding JavaDoc should be updated together with bean fields.
 - When using Vert.x async callbacks, avoid blocking EventLoop threads; UI updates should render from async results via UI-thread dispatch.
 
 ## Packaging Constraints

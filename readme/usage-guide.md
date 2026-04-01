@@ -43,19 +43,20 @@ The UI enters `Stopped` instead of `Ready` when HTTP startup fails, and the web 
 Release builds can configure remote callback behavior through Spring Boot config:
 
 - `release.server.host`: server host name. If blank, Muppet Print skips remote error-log push.
-- `release.server.prefix`: optional API prefix added before callback paths. Example: `/api`.
 - `release.server.token`: token used in callback headers with key `Muppet-Token`.
 - `release.signin.enable`: controls desktop printer signin button visibility only (no remote dynamic loading for this flag).
 
-Current remote error callback target path is `/{prefix}/muppet/log`.
-If `release.server.prefix` is blank, the effective path is `/muppet/log`.
+The remote error callback target path is `/muppet/log`, appended directly to `release.server.host`.
+`release.server.host` can include a base path. Example: `http://host/api` -> callback URL `http://host/api/muppet/log`.
 See [server-api-requirements.md](server-api-requirements.md) for server contract details.
 
 When printer signin is enabled:
 
-- `Signin local printer` opens a form and submits to `POST /{prefix}/muppet/signin`.
+- `Signin local printer` first loads groups from `GET /muppet/groups`; if group loading fails, signin is blocked and an error is shown.
+- `Signin local printer` submits to `POST /muppet/signin` after local validation.
 - The signin form validates printer selection and page width/height locally before any server request is sent.
-- `Signed` opens the local machine's signed-printer list loaded from `GET /muppet/signed?mac=<local-mac>`.
+- `Signed` opens the machine's signed-printer list loaded from `GET /muppet/signed?mac=<local-mac>`.
+- The signed-printer list displays a `group` column and maps group values to group labels from `GET /muppet/groups`; unmatched values are shown as-is.
 - The signed-printer list highlights local mismatch fields in red for quick operator review.
 
 ## Integration Flow

@@ -13,16 +13,20 @@ import java.awt.Panel;
 import java.awt.ScrollPane;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import org.springframework.stereotype.Component;
 
+import com.xuesinuo.muppet.webclient.GroupOption;
+import com.xuesinuo.muppet.webclient.GroupWebClient;
+import com.xuesinuo.muppet.webclient.SignedPrinterRecord;
 import com.xuesinuo.muppet.webclient.SignedWebClient;
+import com.xuesinuo.muppet.webclient.SignoutPrinterRequest;
+import com.xuesinuo.muppet.webclient.SignoutWebClient;
 
-import io.vertx.core.json.JsonArray;
-import io.vertx.core.json.JsonObject;
 import lombok.RequiredArgsConstructor;
 
 @Component
@@ -30,6 +34,8 @@ import lombok.RequiredArgsConstructor;
 public class SignedUi {
 
     private final SignedWebClient signedWebClient;
+    private final GroupWebClient groupWebClient;
+    private final SignoutWebClient signoutWebClient;
 
     private Dialog dialog;
     private volatile boolean opened;
@@ -44,6 +50,7 @@ public class SignedUi {
     private String currentLocalPcName;
     private String currentLocalUrl;
     private List<String> currentLocalPrinters = List.of();
+    private Map<String, String> groupLabelByValue = new HashMap<>();
 
     public void open(Frame owner, String localMac,
             String localPcName, String localUrl, List<String> localPrinters) {
@@ -55,6 +62,7 @@ public class SignedUi {
         currentLocalPcName = localPcName;
         currentLocalUrl = localUrl;
         currentLocalPrinters = localPrinters == null ? List.of() : localPrinters;
+        groupLabelByValue = new HashMap<>();
 
         macValueLabel.setText(localMac == null ? "" : localMac);
         pcNameValueLabel.setText(localPcName == null ? "" : localPcName);
@@ -66,7 +74,7 @@ public class SignedUi {
         dialog.setLocationRelativeTo(owner);
         dialog.setVisible(true);
 
-        loadSignedRecords();
+        loadGroupsAndSignedRecords();
     }
 
     public boolean isOpened() {
@@ -91,8 +99,8 @@ public class SignedUi {
         Insets insets = dialog.getInsets();
         int titleBarHeight = insets.top;
         int hfs = getHalfFontSize();
-        int dialogWidth = Math.max(120 * hfs, 980);
-        int dialogHeight = Math.max(54 * hfs, 560);
+        int dialogWidth = Math.max(182 * hfs, 1240);
+        int dialogHeight = Math.max(66 * hfs, 540);
         dialog.setSize(dialogWidth, dialogHeight);
 
         addLabel(dialog, "mac", 2, 1, 10, hfs, titleBarHeight);
@@ -102,84 +110,105 @@ public class SignedUi {
         pcNameValueLabel = addValue(dialog, "", 14, 6, 102, hfs, titleBarHeight, Color.BLACK);
 
         addLabel(dialog, "url", 2, 11, 10, hfs, titleBarHeight);
-        urlValueLabel = addValue(dialog, "", 14, 11, 102, hfs, titleBarHeight, Color.BLACK);
+        urlValueLabel = addValue(dialog, "", 14, 11, 164, hfs, titleBarHeight, Color.BLACK);
+
+        Panel separatorLine = new Panel();
+        separatorLine.setBackground(Color.DARK_GRAY);
+        separatorLine.setBounds(2 * hfs, 16 * hfs + titleBarHeight, 177 * hfs, 1);
+        dialog.add(separatorLine);
 
         ScrollPane tableScrollPane = new ScrollPane(ScrollPane.SCROLLBARS_AS_NEEDED);
-        tableScrollPane.setBounds(2 * hfs, 16 * hfs + titleBarHeight, 116 * hfs, 25 * hfs);
+        tableScrollPane.setBounds(2 * hfs, 16 * hfs + titleBarHeight, 177 * hfs, 42 * hfs);
         tablePanel = new Panel(null);
         tableScrollPane.add(tablePanel);
         dialog.add(tableScrollPane);
 
         errorLabel = new Label("Loading...");
         errorLabel.setForeground(Color.RED);
-        errorLabel.setBounds(2 * hfs, 43 * hfs + titleBarHeight, 92 * hfs, 4 * hfs);
+        errorLabel.setBounds(2 * hfs, 60 * hfs + titleBarHeight, 120 * hfs, 4 * hfs);
         dialog.add(errorLabel);
 
         Button closeButton = new Button("Close");
-        closeButton.setBounds(104 * hfs, 43 * hfs + titleBarHeight, 12 * hfs, 4 * hfs);
+        closeButton.setBounds(167 * hfs, 60 * hfs + titleBarHeight, 12 * hfs, 4 * hfs);
         closeButton.addActionListener(e -> closeDialog());
         dialog.add(closeButton);
+    }
+
+    private void loadGroupsAndSignedRecords() {
+        groupWebClient.queryGroups().onSuccess(result -> {
+            if (result.isSuccess() && result.getData() != null) {
+                Map<String, String> groupMap = new HashMap<>();
+                for (GroupOption groupOption : result.getData()) {
+                    String value = groupOption.getValue();
+                    String label = groupOption.getLabel();
+                    if (value != null && !value.isBlank() && label != null && !label.isBlank()) {
+                        groupMap.put(value, label);
+                    }
+                }
+                groupLabelByValue = groupMap;
+            }
+            loadSignedRecords();
+        });
     }
 
     private void loadSignedRecords() {
         signedWebClient.querySigned(currentLocalMac)
                 .onSuccess(response -> {
-                    if (response.statusCode() != 200) {
-                        EventQueue.invokeLater(() -> errorLabel.setText(parseFailureMessage(response.bodyAsString())));
+                    if (!response.isSuccess()) {
+                        EventQueue.invokeLater(() -> errorLabel.setText(parseErrorMessage(response.getMessage())));
                         return;
                     }
-                    List<SignedPrintRecord> records = parseSignedRecords(response.bodyAsString());
+                    List<SignedPrinterRecord> records = response.getData() == null ? List.of() : response.getData();
                     EventQueue.invokeLater(() -> {
                         errorLabel.setText("");
                         renderSignedTable(records);
                     });
-                })
-                .onFailure(error -> EventQueue.invokeLater(() -> {
-                    if (error.getMessage() != null && !error.getMessage().isBlank()) {
-                        errorLabel.setText(error.getMessage());
-                    } else {
-                        errorLabel.setText("error");
-                    }
-                }));
+                });
     }
 
-    private void renderSignedTable(List<SignedPrintRecord> records) {
+    private void renderSignedTable(List<SignedPrinterRecord> records) {
         int hfs = getHalfFontSize();
         tablePanel.removeAll();
 
-        int tableWidth = 112 * hfs;
+        int tableWidth = 180 * hfs;
         int rowHeight = 5 * hfs;
         int totalRows = Math.max(records.size() + 1, 3);
-        tablePanel.setPreferredSize(new Dimension(tableWidth, totalRows * rowHeight + 2 * hfs));
+        int tableHeight = totalRows * rowHeight + 2 * hfs;
+        tablePanel.setPreferredSize(new Dimension(tableWidth, tableHeight));
+        tablePanel.setSize(tableWidth, tableHeight);
 
-        addTableCell(tablePanel, "pc name", 2, 1, 16, hfs, Color.BLACK);
-        addTableCell(tablePanel, "printer name", 19, 1, 20, hfs, Color.BLACK);
-        addTableCell(tablePanel, "url", 41, 1, 30, hfs, Color.BLACK);
-        addTableCell(tablePanel, "page width", 73, 1, 11, hfs, Color.BLACK);
-        addTableCell(tablePanel, "page height", 86, 1, 11, hfs, Color.BLACK);
-        addTableCell(tablePanel, "operation", 99, 1, 11, hfs, Color.BLACK);
+        addTableCell(tablePanel, "pc name", 2, 1, 32, hfs, Color.BLACK);
+        addTableCell(tablePanel, "printer name", 35, 1, 32, hfs, Color.BLACK);
+        addTableCell(tablePanel, "group", 68, 1, 32, hfs, Color.BLACK);
+        addTableCell(tablePanel, "url", 100, 1, 48, hfs, Color.BLACK);
+        addTableCell(tablePanel, "width", 149, 1, 8, hfs, Color.BLACK);
+        addTableCell(tablePanel, "height", 158, 1, 8, hfs, Color.BLACK);
+        addTableCell(tablePanel, "operation", 167, 1, 11, hfs, Color.BLACK);
 
         if (records.isEmpty()) {
             addTableCell(tablePanel, "No signed printers.", 2, 6, 60, hfs, Color.BLACK);
         }
 
         for (int i = 0; i < records.size(); i++) {
-            SignedPrintRecord record = records.get(i);
+            SignedPrinterRecord record = records.get(i);
             int rowY = 6 + i * 5;
 
-            Color pcColor = Objects.equals(currentLocalPcName, record.pcName) ? Color.BLACK : Color.RED;
-            Color printerColor = currentLocalPrinters.contains(record.printerName) ? Color.BLACK : Color.RED;
-            Color urlColor = Objects.equals(currentLocalUrl, record.url) ? Color.BLACK : Color.RED;
+            Color pcColor = Objects.equals(currentLocalPcName, record.getPcName()) ? Color.BLACK : Color.RED;
+            Color printerColor = currentLocalPrinters.contains(record.getPrinterName()) ? Color.BLACK : Color.RED;
+            Color urlColor = Objects.equals(currentLocalUrl, record.getUrl()) ? Color.BLACK : Color.RED;
+            String groupText = resolveGroupLabel(record.getGroup());
 
-            addTableCell(tablePanel, record.pcName, 2, rowY, 16, hfs, pcColor);
-            addTableCell(tablePanel, record.printerName, 19, rowY, 20, hfs, printerColor);
-            addTableCell(tablePanel, record.url, 41, rowY, 30, hfs, urlColor);
-            addTableCell(tablePanel, record.pageWidth, 73, rowY, 11, hfs, Color.BLACK);
-            addTableCell(tablePanel, record.pageHeight, 86, rowY, 11, hfs, Color.BLACK);
+            addTableCell(tablePanel, record.getPcName(), 2, rowY, 32, hfs, pcColor);
+            addTableCell(tablePanel, record.getPrinterName(), 35, rowY, 32, hfs, printerColor);
+            addTableCell(tablePanel, groupText, 68, rowY, 32, hfs, Color.BLACK);
+            addTableCell(tablePanel, record.getUrl(), 100, rowY, 48, hfs, urlColor);
+            addTableCell(tablePanel, record.getPageWidth(), 149, rowY, 8, hfs, Color.BLACK);
+            addTableCell(tablePanel, record.getPageHeight(), 158, rowY, 8, hfs, Color.BLACK);
 
             Button deleteButton = new Button("delete");
-            deleteButton.setEnabled(false);
-            deleteButton.setBounds(99 * hfs, rowY * hfs, 11 * hfs, 4 * hfs);
+            deleteButton.setEnabled(true);
+            deleteButton.setBounds(167 * hfs, rowY * hfs, 11 * hfs, 4 * hfs);
+            deleteButton.addActionListener(e -> handleDelete(record));
             tablePanel.add(deleteButton);
         }
 
@@ -201,66 +230,39 @@ public class SignedUi {
         panel.add(label);
     }
 
-    private List<SignedPrintRecord> parseSignedRecords(String body) {
-        List<SignedPrintRecord> records = new ArrayList<>();
-        JsonObject jsonObject = tryParseJsonObject(body);
-        if (jsonObject == null) {
-            return records;
+    private String parseErrorMessage(String message) {
+        if (message == null || message.isBlank()) {
+            return "error";
         }
-
-        JsonArray printsArray = null;
-        if (jsonObject.containsKey("code")) {
-            if (!"SUCCESS".equals(jsonObject.getString("code"))) {
-                return records;
-            }
-            JsonObject data = jsonObject.getJsonObject("data");
-            if (data != null) {
-                printsArray = data.getJsonArray("prints");
-            }
-        }
-        if (printsArray == null) {
-            printsArray = jsonObject.getJsonArray("prints");
-        }
-        if (printsArray == null) {
-            return records;
-        }
-
-        for (int i = 0; i < printsArray.size(); i++) {
-            JsonObject item = printsArray.getJsonObject(i);
-            if (item == null) {
-                continue;
-            }
-            SignedPrintRecord record = new SignedPrintRecord();
-            record.pcName = item.getString("pcName", "");
-            record.printerName = item.getString("printerName", "");
-            record.url = item.getString("url", "");
-            record.pageWidth = item.getValue("pageWidth") == null ? "" : String.valueOf(item.getValue("pageWidth"));
-            record.pageHeight = item.getValue("pageHeight") == null ? "" : String.valueOf(item.getValue("pageHeight"));
-            records.add(record);
-        }
-        return records;
+        return message;
     }
 
-    private String parseFailureMessage(String body) {
-        JsonObject jsonObject = tryParseJsonObject(body);
-        if (jsonObject != null) {
-            String message = jsonObject.getString("message");
-            if (message != null && !message.isBlank()) {
-                return message;
-            }
+    private String resolveGroupLabel(String groupValue) {
+        if (groupValue == null || groupValue.isBlank()) {
+            return "";
         }
-        return "error";
+        String groupLabel = groupLabelByValue.get(groupValue);
+        return groupLabel == null || groupLabel.isBlank() ? groupValue : groupLabel;
     }
 
-    private JsonObject tryParseJsonObject(String body) {
-        if (body == null || body.isBlank()) {
-            return null;
+    private void handleDelete(SignedPrinterRecord record) {
+        if (record == null) {
+            return;
         }
-        try {
-            return new JsonObject(body);
-        } catch (Exception ignored) {
-            return null;
-        }
+        SignoutPrinterRequest requestBody = new SignoutPrinterRequest();
+        requestBody.setMac(record.getMac());
+        requestBody.setPrinterName(record.getPrinterName());
+        requestBody.setGroup(record.getGroup());
+
+        errorLabel.setText("Deleting...");
+        signoutWebClient.signout(requestBody).onSuccess(result -> EventQueue.invokeLater(() -> {
+            if (result.isSuccess()) {
+                errorLabel.setText("Delete success.");
+                loadSignedRecords();
+                return;
+            }
+            errorLabel.setText(parseErrorMessage(result.getMessage()));
+        }));
     }
 
     private void addLabel(Dialog target, String text, int x, int y, int width, int hfs, int titleBarHeight) {
@@ -284,11 +286,4 @@ public class SignedUi {
         return fontSize / 2 + fontSize % 2;
     }
 
-    private static class SignedPrintRecord {
-        private String pcName;
-        private String printerName;
-        private String url;
-        private String pageWidth;
-        private String pageHeight;
-    }
 }

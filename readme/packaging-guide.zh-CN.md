@@ -4,7 +4,7 @@
 
 ## 概览
 
-当前项目已经在 Maven 中配置了桌面应用打包能力。主类为 `com.xuesinuo.muppet.UiStarter`，并且在 `pom.xml` 中提供了 Windows 和 macOS 的 `jpackage-maven-plugin` 打包配置。
+项目已经在 Maven 中配置了桌面应用打包能力。主类为 `com.xuesinuo.muppet.UiStarter`，并且在 `pom.xml` 中提供了 Windows 和 macOS 的 `jpackage-maven-plugin` 打包配置。
 
 ## 通用要求
 
@@ -23,7 +23,7 @@ mvn clean package
 
 ## Windows 打包
 
-当前 `windows` Maven Profile 配置了：
+`windows` Maven Profile 配置了：
 
 - 应用名：`MuppetPrint`
 - 输出目录：`target/dist`
@@ -43,7 +43,7 @@ mvn clean package -Pwindows
 
 ## macOS 打包
 
-当前 `macos` Maven Profile 配置了：
+`macos` Maven Profile 配置了：
 
 - 应用名：`MuppetPrint`
 - 输出目录：`target/dist`
@@ -58,13 +58,13 @@ mvn clean package -Pmacos
 ### macOS 说明
 
 - macOS 打包需要在 macOS 环境中进行，且 JDK 需要提供 `jpackage`。
-- 当前 UI 已包含基于 LaunchAgent 的 macOS 开机自启逻辑。
+- UI 已包含基于 LaunchAgent 的 macOS 开机自启逻辑。
 
 ## Linux 打包
 
-当前 `pom.xml` 中还没有单独的 Linux `jpackage` Profile。
+`pom.xml` 中还没有单独的 Linux `jpackage` Profile。
 
-现阶段更实际的做法是：
+更实际的做法包括：
 
 - 在 Linux 上直接以 JDK 21 运行 JAR。
 - 如果后续需要桌面安装包，再补充 Linux 打包 Profile。

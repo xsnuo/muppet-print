@@ -62,9 +62,9 @@ mvn clean package -Pmacos
 
 ## Linux Packaging
 
-There is no dedicated Linux `jpackage` Maven profile in the current `pom.xml`.
+There is no dedicated Linux `jpackage` Maven profile in `pom.xml`.
 
-Current practical options are:
+Practical options include:
 
 - run the JAR directly on Linux with JDK 21
 - add a Linux packaging profile in a future iteration if a desktop distribution format is required

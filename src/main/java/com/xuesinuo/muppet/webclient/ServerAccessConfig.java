@@ -13,9 +13,6 @@ public class ServerAccessConfig {
     @Value("${release.server.host:}")
     private String releaseServerHost;
 
-    @Value("${release.server.prefix:}")
-    private String releaseServerPrefix;
-
     @Value("${release.server.token:}")
     private String releaseServerToken;
 
@@ -24,7 +21,7 @@ public class ServerAccessConfig {
     }
 
     public String signinUrl() {
-        return buildServerUrl(normalizePrefix(releaseServerPrefix) + "/muppet/signin");
+        return buildServerUrl("/muppet/signin");
     }
 
     public String signedUrl(String mac) {
@@ -33,7 +30,15 @@ public class ServerAccessConfig {
     }
 
     public String errorLogUrl() {
-        return buildServerUrl(normalizePrefix(releaseServerPrefix) + "/muppet/log");
+        return buildServerUrl("/muppet/log");
+    }
+
+    public String groupsUrl() {
+        return buildServerUrl("/muppet/groups");
+    }
+
+    public String signoutUrl() {
+        return buildServerUrl("/muppet/signout");
     }
 
     public String token() {
@@ -53,20 +58,6 @@ public class ServerAccessConfig {
             hostPart = hostPart.substring(0, hostPart.length() - 1);
         }
         return URI.create(hostPart + pathAndQuery).toString();
-    }
-
-    private String normalizePrefix(String prefix) {
-        if (prefix == null || prefix.isBlank()) {
-            return "";
-        }
-        String value = prefix.trim();
-        if (!value.startsWith("/")) {
-            value = "/" + value;
-        }
-        while (value.endsWith("/")) {
-            value = value.substring(0, value.length() - 1);
-        }
-        return value;
     }
 
     private String safeTrim(String value) {

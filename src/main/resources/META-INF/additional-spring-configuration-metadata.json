@@ -3,12 +3,7 @@
         {
             "name": "release.server.host",
             "type": "java.lang.String",
-            "description": "发布模式回调服务器主机名或基址，为空时不发起服务器回调。Ex: http://www.xuesinuo.com"
-        },
-        {
-            "name": "release.server.prefix",
-            "type": "java.lang.String",
-            "description": "服务器提供接口的统一前缀，会拼接到 /muppet/* 路径前。Ex: /muppet"
+            "description": "发布模式回调服务器主机名或基址，为空时不发起服务器回调；可直接包含上游服务基础路径。Ex: http://www.xuesinuo.com/api"
         },
         {
             "name": "release.server.token",

@@ -84,6 +84,7 @@ Outbound HTTP calls are encapsulated under `com.xuesinuo.muppet.webclient`.
 - `SignedWebClient`: remote signed-printer list query.
 - `LogWebClient`: remote error-log callback push.
 - `ServerAccessConfig`: server host/prefix/token resolution for webclient wrappers.
+- `WebClientResult<T>`: unified typed result envelope returned by webclient wrappers.
 
 UI and API/config beans should consume these wrappers instead of direct HTTP client usage.
 Desktop UI should not assemble remote server URL/token details.
@@ -134,6 +135,10 @@ Responsibilities:
 2. Printer discovery runs in a blocking worker path.
 3. Results are wrapped under `data.printers` in `ApiResult`.
 
+### Signed-printer callback payload
+
+The release callback query endpoint returns signed-printer records under `data.printers`.
+
 ## Deployment Shape
 
 The project is intended to be packaged as a desktop application for Windows, macOS, and Linux. The current repository also builds a Spring Boot JAR, but the operator model clearly assumes a local GUI host with printer access.
@@ -147,7 +152,7 @@ The `Run` and `Stop` buttons now control web runtime directly through `WebVertic
 - Playwright Chromium runtime for rendering.
 - Local OS printer subsystem.
 - Remote version endpoint at `www.xuesinuo.com`.
-- Optional remote error log callback configured by `release.server.host`, `release.server.prefix`, and `release.server.token`.
+- Optional remote callback integration configured by `release.server.host` and `release.server.token`, with fixed endpoints under `/muppet/*`.
 
 ## Architectural Strengths
 
