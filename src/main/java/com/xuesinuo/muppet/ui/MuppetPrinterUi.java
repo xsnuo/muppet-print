@@ -1,17 +1,12 @@
 package com.xuesinuo.muppet.ui;
 
-import java.awt.Button;
-import java.awt.Checkbox;
 import java.awt.Color;
-import java.awt.Dialog;
 import java.awt.Dimension;
 import java.awt.EventQueue;
 import java.awt.Font;
 import java.awt.Frame;
 import java.awt.Image;
 import java.awt.Insets;
-import java.awt.Label;
-import java.awt.TextField;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
@@ -31,6 +26,14 @@ import java.util.TimerTask;
 
 import javax.imageio.ImageIO;
 import javax.print.PrintService;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JDialog;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
+import javax.swing.SwingConstants;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -63,17 +66,17 @@ public class MuppetPrinterUi {
     @Value("${release.signin.enable:false}")
     private boolean signinEnable;
 
-    private final Frame frame = new Frame();
-    private final Label portTitelLabel = new Label("Web Port:");
-    private final Label portLabel = new Label("");
-    private final TextField portTextField = new TextField(4);
-    private final Label statusLabel = new Label("Status: Stopped");
-    private final Button runButton = new Button("Run");
-    private final Button stopButton = new Button("Stop");
-    private final Button signinLocalPrinterButton = new Button("Signin local printer");
-    private final Button signedButton = new Button("Signed");
-    private final Label messageLabel = new Label("");
-    private final Checkbox autoStartCheckbox = new Checkbox("auto start on boot");
+    private final JFrame frame = new JFrame();
+    private final JLabel portTitelLabel = new JLabel("端口 Web Port:");
+    private final JLabel portLabel = new JLabel("");
+    private final JTextField portTextField = new JTextField(4);
+    private final JLabel statusLabel = new JLabel("Status: Stopped");
+    private final JButton runButton = new JButton("Run");
+    private final JButton stopButton = new JButton("Stop");
+    private final JButton signinLocalPrinterButton = new JButton("Signin local printer");
+    private final JButton signedButton = new JButton("Signed");
+    private final JLabel messageLabel = new JLabel("");
+    private final JCheckBox autoStartCheckbox = new JCheckBox("auto start on boot");
 
     private volatile int appState = 0; // 0:停止 1:正在启动 2:运行 3:正在关闭
 
@@ -111,7 +114,7 @@ public class MuppetPrinterUi {
     }
 
     private void initMainFrame() {
-        frame.setTitle("Muppet Printer");
+        frame.setTitle("Muppet Printer - 中文测试");
         Image icon = getAppIcon();
         if (icon != null) {
             frame.setIconImage(icon);
@@ -161,9 +164,9 @@ public class MuppetPrinterUi {
         }
 
         autoStartCheckbox.setBounds(2 * hfs, 21 * hfs + titleBarHeight, 28 * hfs, 4 * hfs);
-        autoStartCheckbox.setState(isAutoStartEnabled());
+        autoStartCheckbox.setSelected(isAutoStartEnabled());
         autoStartCheckbox.addItemListener(e -> {
-            if (autoStartCheckbox.getState()) {
+            if (autoStartCheckbox.isSelected()) {
                 enableAutoStart();
             } else {
                 disableAutoStart();
@@ -175,7 +178,6 @@ public class MuppetPrinterUi {
         messageLabel.setForeground(Color.RED);
         frame.add(messageLabel);
 
-        AwtUiSupport.applyDefaultFont(frame);
         frame.setVisible(true);
     }
 
@@ -404,7 +406,7 @@ public class MuppetPrinterUi {
     }
 
     private int getHalfFontSize() {
-        Font defaultFont = new Label("Loading...").getFont();
+        Font defaultFont = new JLabel("Loading...").getFont();
         int fontSize = defaultFont == null ? 12 : defaultFont.getSize();
         return fontSize / 2 + fontSize % 2;
     }
@@ -575,14 +577,14 @@ public class MuppetPrinterUi {
 
     private void showAlreadyRunningDialog() {
         try {
-            Dialog dialog = new Dialog((Frame) null, "Muppet Print", true);
+            JDialog dialog = new JDialog((Frame) null, "Muppet Print", true);
             Image icon = getAppIcon();
             if (icon != null) {
                 dialog.setIconImage(icon);
             }
             dialog.setLayout(new java.awt.BorderLayout());
-            Label message = new Label("Muppet Print is already running.", Label.CENTER);
-            Button confirmButton = new Button("OK");
+            JLabel message = new JLabel("Muppet Print is already running.", SwingConstants.CENTER);
+            JButton confirmButton = new JButton("OK");
             confirmButton.addActionListener(e -> dialog.dispose());
 
             Font defaultFont = message.getFont();
@@ -593,11 +595,10 @@ public class MuppetPrinterUi {
             int hfs = fs / 2 + fs % 2;
             confirmButton.setPreferredSize(new Dimension(20 * hfs, 4 * hfs));
 
-            java.awt.Panel buttonPanel = new java.awt.Panel();
+            JPanel buttonPanel = new JPanel();
             buttonPanel.add(confirmButton);
             dialog.add(message, java.awt.BorderLayout.CENTER);
             dialog.add(buttonPanel, java.awt.BorderLayout.SOUTH);
-            AwtUiSupport.applyDefaultFont(dialog);
             dialog.setSize(320, 140);
             dialog.setLocationRelativeTo(null);
             dialog.addWindowListener(new WindowAdapter() {

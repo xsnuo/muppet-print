@@ -34,8 +34,6 @@ public class TrayUi {
             popupMenu.add(openItem);
             popupMenu.addSeparator();
             popupMenu.add(exitItem);
-            AwtUiSupport.applyDefaultFont(popupMenu);
-
             trayIcon = new TrayIcon(trayImage, "Muppet Printer", popupMenu);
             trayIcon.setImageAutoSize(true);
             trayIcon.addActionListener(e -> onOpen.run());

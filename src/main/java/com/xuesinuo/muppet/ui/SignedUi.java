@@ -1,22 +1,22 @@
 package com.xuesinuo.muppet.ui;
 
-import java.awt.Button;
 import java.awt.Color;
-import java.awt.Dialog;
 import java.awt.Dimension;
 import java.awt.EventQueue;
 import java.awt.Font;
 import java.awt.Frame;
-import java.awt.Insets;
-import java.awt.Label;
-import java.awt.Panel;
-import java.awt.ScrollPane;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+
+import javax.swing.JButton;
+import javax.swing.JDialog;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 
 import org.springframework.stereotype.Component;
 
@@ -37,14 +37,14 @@ public class SignedUi {
     private final GroupWebClient groupWebClient;
     private final SignoutWebClient signoutWebClient;
 
-    private Dialog dialog;
+    private JDialog dialog;
     private volatile boolean opened;
 
-    private Label macValueLabel;
-    private Label pcNameValueLabel;
-    private Label urlValueLabel;
-    private Label errorLabel;
-    private Panel tablePanel;
+    private JLabel macValueLabel;
+    private JLabel pcNameValueLabel;
+    private JLabel urlValueLabel;
+    private JLabel errorLabel;
+    private JPanel tablePanel;
 
     private String currentLocalMac;
     private String currentLocalPcName;
@@ -82,7 +82,7 @@ public class SignedUi {
     }
 
     private void initDialog(Frame owner) {
-        dialog = new Dialog(owner, "Signed", false);
+        dialog = new JDialog(owner, "Signed", false);
         if (owner.getIconImage() != null) {
             dialog.setIconImage(owner.getIconImage());
         }
@@ -94,10 +94,7 @@ public class SignedUi {
                 closeDialog();
             }
         });
-        dialog.addNotify();
-
-        Insets insets = dialog.getInsets();
-        int titleBarHeight = insets.top;
+        int titleBarHeight = 0;
         int hfs = getHalfFontSize();
         int dialogWidth = Math.max(182 * hfs, 1240);
         int dialogHeight = Math.max(66 * hfs, 540);
@@ -112,28 +109,28 @@ public class SignedUi {
         addLabel(dialog, "url", 2, 11, 10, hfs, titleBarHeight);
         urlValueLabel = addValue(dialog, "", 14, 11, 164, hfs, titleBarHeight, Color.BLACK);
 
-        Panel separatorLine = new Panel();
+        JPanel separatorLine = new JPanel();
         separatorLine.setBackground(Color.DARK_GRAY);
         separatorLine.setBounds(2 * hfs, 16 * hfs + titleBarHeight, 177 * hfs, 1);
         dialog.add(separatorLine);
 
-        ScrollPane tableScrollPane = new ScrollPane(ScrollPane.SCROLLBARS_AS_NEEDED);
+        JScrollPane tableScrollPane = new JScrollPane(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+            JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         tableScrollPane.setBounds(2 * hfs, 16 * hfs + titleBarHeight, 177 * hfs, 42 * hfs);
-        tablePanel = new Panel(null);
-        tableScrollPane.add(tablePanel);
+        tablePanel = new JPanel(null);
+        tableScrollPane.setViewportView(tablePanel);
         dialog.add(tableScrollPane);
 
-        errorLabel = new Label("Loading...");
+        errorLabel = new JLabel("Loading...");
         errorLabel.setForeground(Color.RED);
         errorLabel.setBounds(2 * hfs, 60 * hfs + titleBarHeight, 120 * hfs, 4 * hfs);
         dialog.add(errorLabel);
 
-        Button closeButton = new Button("Close");
+        JButton closeButton = new JButton("Close");
         closeButton.setBounds(167 * hfs, 60 * hfs + titleBarHeight, 12 * hfs, 4 * hfs);
         closeButton.addActionListener(e -> closeDialog());
         dialog.add(closeButton);
 
-        AwtUiSupport.applyDefaultFont(dialog);
     }
 
     private void loadGroupsAndSignedRecords() {
@@ -172,20 +169,20 @@ public class SignedUi {
         int hfs = getHalfFontSize();
         tablePanel.removeAll();
 
-        int tableWidth = 180 * hfs;
+        int tableWidth = 176 * hfs;
         int rowHeight = 5 * hfs;
         int totalRows = Math.max(records.size() + 1, 3);
         int tableHeight = totalRows * rowHeight + 2 * hfs;
         tablePanel.setPreferredSize(new Dimension(tableWidth, tableHeight));
         tablePanel.setSize(tableWidth, tableHeight);
 
-        addTableCell(tablePanel, "pc name", 2, 1, 32, hfs, Color.BLACK);
-        addTableCell(tablePanel, "printer name", 35, 1, 32, hfs, Color.BLACK);
-        addTableCell(tablePanel, "group", 68, 1, 32, hfs, Color.BLACK);
-        addTableCell(tablePanel, "url", 100, 1, 48, hfs, Color.BLACK);
-        addTableCell(tablePanel, "width", 149, 1, 8, hfs, Color.BLACK);
-        addTableCell(tablePanel, "height", 158, 1, 8, hfs, Color.BLACK);
-        addTableCell(tablePanel, "operation", 167, 1, 11, hfs, Color.BLACK);
+        addTableCell(tablePanel, "pc name", 2, 1, 28, hfs, Color.BLACK);
+        addTableCell(tablePanel, "printer name", 31, 1, 28, hfs, Color.BLACK);
+        addTableCell(tablePanel, "group", 60, 1, 24, hfs, Color.BLACK);
+        addTableCell(tablePanel, "url", 85, 1, 40, hfs, Color.BLACK);
+        addTableCell(tablePanel, "width", 126, 1, 8, hfs, Color.BLACK);
+        addTableCell(tablePanel, "height", 135, 1, 8, hfs, Color.BLACK);
+        addTableCell(tablePanel, "operation", 144, 1, 20, hfs, Color.BLACK);
 
         if (records.isEmpty()) {
             addTableCell(tablePanel, "No signed printers.", 2, 6, 60, hfs, Color.BLACK);
@@ -200,16 +197,16 @@ public class SignedUi {
             Color urlColor = Objects.equals(currentLocalUrl, record.getUrl()) ? Color.BLACK : Color.RED;
             String groupText = resolveGroupLabel(record.getGroup());
 
-            addTableCell(tablePanel, record.getPcName(), 2, rowY, 32, hfs, pcColor);
-            addTableCell(tablePanel, record.getPrinterName(), 35, rowY, 32, hfs, printerColor);
-            addTableCell(tablePanel, groupText, 68, rowY, 32, hfs, Color.BLACK);
-            addTableCell(tablePanel, record.getUrl(), 100, rowY, 48, hfs, urlColor);
-            addTableCell(tablePanel, record.getPageWidth(), 149, rowY, 8, hfs, Color.BLACK);
-            addTableCell(tablePanel, record.getPageHeight(), 158, rowY, 8, hfs, Color.BLACK);
+            addTableCell(tablePanel, record.getPcName(), 2, rowY, 28, hfs, pcColor);
+            addTableCell(tablePanel, record.getPrinterName(), 31, rowY, 28, hfs, printerColor);
+            addTableCell(tablePanel, groupText, 60, rowY, 24, hfs, Color.BLACK);
+            addTableCell(tablePanel, record.getUrl(), 85, rowY, 40, hfs, urlColor);
+            addTableCell(tablePanel, record.getPageWidth(), 126, rowY, 8, hfs, Color.BLACK);
+            addTableCell(tablePanel, record.getPageHeight(), 135, rowY, 8, hfs, Color.BLACK);
 
-            Button deleteButton = new Button("delete");
+            JButton deleteButton = new JButton("delete");
             deleteButton.setEnabled(true);
-            deleteButton.setBounds(167 * hfs, rowY * hfs, 11 * hfs, 4 * hfs);
+            deleteButton.setBounds(144 * hfs, rowY * hfs, 20 * hfs, 4 * hfs);
             deleteButton.addActionListener(e -> handleDelete(record));
             tablePanel.add(deleteButton);
         }
@@ -225,8 +222,8 @@ public class SignedUi {
         }
     }
 
-    private void addTableCell(Panel panel, String text, int x, int y, int width, int hfs, Color color) {
-        Label label = new Label(text == null ? "" : text);
+    private void addTableCell(JPanel panel, String text, int x, int y, int width, int hfs, Color color) {
+        JLabel label = new JLabel(text == null ? "" : text);
         label.setForeground(color);
         label.setBounds(x * hfs, y * hfs, width * hfs, 4 * hfs);
         panel.add(label);
@@ -267,15 +264,15 @@ public class SignedUi {
         }));
     }
 
-    private void addLabel(Dialog target, String text, int x, int y, int width, int hfs, int titleBarHeight) {
-        Label label = new Label(text);
+    private void addLabel(JDialog target, String text, int x, int y, int width, int hfs, int titleBarHeight) {
+        JLabel label = new JLabel(text);
         label.setBounds(x * hfs, y * hfs + titleBarHeight, width * hfs, 4 * hfs);
         target.add(label);
     }
 
-    private Label addValue(Dialog target, String text, int x, int y, int width, int hfs, int titleBarHeight,
+    private JLabel addValue(JDialog target, String text, int x, int y, int width, int hfs, int titleBarHeight,
             Color color) {
-        Label label = new Label(text == null ? "" : text);
+        JLabel label = new JLabel(text == null ? "" : text);
         label.setForeground(color);
         label.setBounds(x * hfs, y * hfs + titleBarHeight, width * hfs, 4 * hfs);
         target.add(label);
@@ -283,7 +280,7 @@ public class SignedUi {
     }
 
     private int getHalfFontSize() {
-        Font defaultFont = new Label("Loading...").getFont();
+        Font defaultFont = new JLabel("Loading...").getFont();
         int fontSize = defaultFont == null ? 12 : defaultFont.getSize();
         return fontSize / 2 + fontSize % 2;
     }

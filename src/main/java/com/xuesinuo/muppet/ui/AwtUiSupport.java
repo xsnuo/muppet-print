@@ -3,31 +3,25 @@ package com.xuesinuo.muppet.ui;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Font;
-import java.awt.GraphicsEnvironment;
 import java.awt.Menu;
 import java.awt.MenuComponent;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
-import java.util.Arrays;
-import java.util.LinkedHashSet;
 import java.util.Locale;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public final class AwtUiSupport {
 
     private static final String DEFAULT_WEB_PORT = "58080";
-    private static final String FONT_TEST_TEXT = "中文";
     private static final Pattern URL_PATTERN = Pattern.compile("^(https?://)([^/?#:]+)(:\\d+)?([^?#]*)?(\\?[^#]*)?(#.*)?$",
             Pattern.CASE_INSENSITIVE);
-    private static volatile Font defaultUiFont;
 
     private AwtUiSupport() {
     }
 
     public static void initializeGlobalUiFont() {
-        resolveDefaultUiFont(new Font(Font.DIALOG, Font.PLAIN, 12));
+    // Swing 迁移后使用系统默认字体，不再主动注入/替换字体。
     }
 
     public static void applyDefaultFont(Component component) {
@@ -72,111 +66,10 @@ public final class AwtUiSupport {
     }
 
     private static Font resolveDefaultUiFont(Font baseFont) {
-        Font cachedFont = defaultUiFont;
-        if (cachedFont != null) {
-            return deriveFont(cachedFont, baseFont);
-        }
-
-        synchronized (AwtUiSupport.class) {
-            cachedFont = defaultUiFont;
-            if (cachedFont != null) {
-                return deriveFont(cachedFont, baseFont);
-            }
-
-            defaultUiFont = loadGlobalUiFont(baseFont);
-            return defaultUiFont;
-        }
-    }
-
-    private static Font deriveFont(Font font, Font baseFont) {
-        if (font == null) {
+        if (baseFont != null) {
             return baseFont;
         }
-        if (baseFont == null) {
-            return font;
-        }
-        return font.deriveFont(baseFont.getStyle(), baseFont.getSize2D());
-    }
-
-    private static Font loadGlobalUiFont(Font baseFont) {
-        int size = baseFont == null || baseFont.getSize() <= 0 ? 12 : baseFont.getSize();
-        int style = baseFont == null ? Font.PLAIN : baseFont.getStyle();
-        String[] availableFamilies = GraphicsEnvironment.getLocalGraphicsEnvironment()
-                .getAvailableFontFamilyNames(Locale.ROOT);
-
-        Set<String> preferredFamilies = preferredSystemFontFamilies();
-        for (String family : availableFamilies) {
-            if (!matchesPreferredFamily(family, preferredFamilies)) {
-                continue;
-            }
-            Font preferredFont = new Font(family, style, size);
-            if (preferredFont.canDisplayUpTo(FONT_TEST_TEXT) == -1) {
-                return preferredFont;
-            }
-        }
-
-        for (String family : availableFamilies) {
-            Font candidate = new Font(family, style, size);
-            if (candidate.canDisplayUpTo(FONT_TEST_TEXT) == -1) {
-                return candidate;
-            }
-        }
-        return new Font(Font.DIALOG, style, size);
-    }
-
-    private static boolean matchesPreferredFamily(String family, Set<String> preferredFamilies) {
-        if (family == null || family.isBlank()) {
-            return false;
-        }
-        for (String preferredFamily : preferredFamilies) {
-            if (preferredFamily == null || preferredFamily.isBlank()) {
-                continue;
-            }
-            if (family.equalsIgnoreCase(preferredFamily)) {
-                return true;
-            }
-            if (family.toLowerCase(Locale.ROOT).contains(preferredFamily.toLowerCase(Locale.ROOT))) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static Set<String> preferredSystemFontFamilies() {
-        String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-        Set<String> families = new LinkedHashSet<>();
-        if (osName.contains("win")) {
-            families.addAll(Arrays.asList(
-                    "Microsoft YaHei UI",
-                    "Microsoft YaHei",
-                    "YaHei",
-                    "微软雅黑",
-                    "SimSun",
-                    "宋体",
-                    "NSimSun",
-                    "SimHei",
-                    "黑体",
-                    "KaiTi",
-                    "楷体",
-                    "DengXian",
-                    "等线"
-            ));
-        } else if (osName.contains("mac")) {
-            families.addAll(Arrays.asList(
-                    "PingFang SC",
-                    "Hiragino Sans GB",
-                    "Heiti SC",
-                    "Songti SC"
-            ));
-        } else {
-            families.addAll(Arrays.asList(
-                    "Noto Sans CJK SC",
-                    "WenQuanYi Zen Hei",
-                    "Source Han Sans SC",
-                    "Droid Sans Fallback"
-            ));
-        }
-        return families;
+        return new Font(Font.DIALOG, Font.PLAIN, 12);
     }
 
     public static String resolveDisplayHostName() {

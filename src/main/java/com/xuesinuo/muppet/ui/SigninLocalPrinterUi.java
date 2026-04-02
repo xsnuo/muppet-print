@@ -1,20 +1,20 @@
 package com.xuesinuo.muppet.ui;
 
-import java.awt.Button;
-import java.awt.Choice;
 import java.awt.Color;
-import java.awt.Dialog;
 import java.awt.EventQueue;
 import java.awt.Font;
 import java.awt.Frame;
-import java.awt.Insets;
-import java.awt.Label;
-import java.awt.TextField;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JDialog;
+import javax.swing.JLabel;
+import javax.swing.JTextField;
 
 import org.springframework.stereotype.Component;
 
@@ -32,19 +32,19 @@ public class SigninLocalPrinterUi {
     private final SigninWebClient signinWebClient;
     private final GroupWebClient groupWebClient;
 
-    private Dialog dialog;
+    private JDialog dialog;
     private volatile boolean opened;
 
-    private Choice groupChoice;
-    private TextField macField;
-    private TextField pcNameField;
-    private TextField urlField;
-    private TextField pageWidthField;
-    private TextField pageHeightField;
-    private Choice printerChoice;
-    private Button urlModeButton;
-    private Label errorLabel;
-    private Button saveButton;
+    private JComboBox<String> groupChoice;
+    private JTextField macField;
+    private JTextField pcNameField;
+    private JTextField urlField;
+    private JTextField pageWidthField;
+    private JTextField pageHeightField;
+    private JComboBox<String> printerChoice;
+    private JButton urlModeButton;
+    private JLabel errorLabel;
+    private JButton saveButton;
 
     private String currentMac;
     private String currentHostName;
@@ -73,20 +73,20 @@ public class SigninLocalPrinterUi {
         pageHeightField.setText("");
         errorLabel.setText("");
 
-        printerChoice.removeAll();
-        printerChoice.add("Please select printer name");
+        printerChoice.removeAllItems();
+        printerChoice.addItem("Please select printer name");
         if (printers != null) {
             for (String printerName : printers) {
                 if (printerName != null && !printerName.isBlank()) {
-                    printerChoice.add(printerName);
+                    printerChoice.addItem(printerName);
                 }
             }
         }
-        printerChoice.select(0);
+        printerChoice.setSelectedIndex(0);
 
-        groupChoice.removeAll();
-        groupChoice.add("Loading groups...");
-        groupChoice.select(0);
+        groupChoice.removeAllItems();
+        groupChoice.addItem("Loading groups...");
+        groupChoice.setSelectedIndex(0);
 
         saveButton.setEnabled(false);
         loadGroups();
@@ -100,7 +100,7 @@ public class SigninLocalPrinterUi {
     }
 
     private void initDialog(Frame owner) {
-        dialog = new Dialog(owner, "Signin local printer", true);
+        dialog = new JDialog(owner, "Signin local printer", true);
         if (owner.getIconImage() != null) {
             dialog.setIconImage(owner.getIconImage());
         }
@@ -112,22 +112,19 @@ public class SigninLocalPrinterUi {
                 closeDialog();
             }
         });
-        dialog.addNotify();
-
-        Insets insets = dialog.getInsets();
-        int titleBarHeight = insets.top;
+        int titleBarHeight = 0;
         int hfs = getHalfFontSize();
         int dialogWidth = Math.max(82 * hfs, 560);
         int dialogHeight = Math.max(44 * hfs, 350);
         dialog.setSize(dialogWidth, dialogHeight);
 
-        groupChoice = new Choice();
+        groupChoice = new JComboBox<>();
         macField = createReadonlyField("");
         pcNameField = createReadonlyField("");
-        urlField = new TextField();
-        pageWidthField = new TextField();
-        pageHeightField = new TextField();
-        printerChoice = new Choice();
+        urlField = new JTextField();
+        pageWidthField = new JTextField();
+        pageHeightField = new JTextField();
+        printerChoice = new JComboBox<>();
 
         addLabel(dialog, "group", 2, 1, 14, hfs, titleBarHeight);
         setBounds(groupChoice, 18, 1, 60, hfs, titleBarHeight);
@@ -149,7 +146,7 @@ public class SigninLocalPrinterUi {
         setBounds(urlField, 18, 21, 44, hfs, titleBarHeight);
         dialog.add(urlField);
 
-        urlModeButton = new Button("use IP");
+        urlModeButton = new JButton("use IP");
         urlModeButton.setBounds(64 * hfs, 21 * hfs + titleBarHeight, 14 * hfs, 4 * hfs);
         urlModeButton.addActionListener(e -> toggleUrlMode());
         dialog.add(urlModeButton);
@@ -162,22 +159,21 @@ public class SigninLocalPrinterUi {
         setBounds(pageHeightField, 56, 26, 16, hfs, titleBarHeight);
         dialog.add(pageHeightField);
 
-        errorLabel = new Label("");
+        errorLabel = new JLabel("");
         errorLabel.setForeground(Color.RED);
         errorLabel.setBounds(2 * hfs, 31 * hfs + titleBarHeight, 76 * hfs, 4 * hfs);
         dialog.add(errorLabel);
 
-        saveButton = new Button("Save");
+        saveButton = new JButton("Save");
         saveButton.setBounds(50 * hfs, 36 * hfs + titleBarHeight, 12 * hfs, 4 * hfs);
         saveButton.addActionListener(e -> handleSave());
         dialog.add(saveButton);
 
-        Button cancelButton = new Button("Cancel");
+        JButton cancelButton = new JButton("Cancel");
         cancelButton.setBounds(64 * hfs, 36 * hfs + titleBarHeight, 12 * hfs, 4 * hfs);
         cancelButton.addActionListener(e -> closeDialog());
         dialog.add(cancelButton);
 
-        AwtUiSupport.applyDefaultFont(dialog);
     }
 
     private void loadGroups() {
@@ -186,28 +182,28 @@ public class SigninLocalPrinterUi {
                     if (!result.isSuccess() || result.getData() == null || result.getData().isEmpty()) {
                         errorLabel.setText("Load groups failed.");
                         saveButton.setEnabled(false);
-                        groupChoice.removeAll();
-                        groupChoice.add("Load groups failed");
-                        groupChoice.select(0);
+                        groupChoice.removeAllItems();
+                        groupChoice.addItem("Load groups failed");
+                        groupChoice.setSelectedIndex(0);
                         return;
                     }
                     currentGroupOptions = result.getData();
-                    groupChoice.removeAll();
-                    groupChoice.add("Please select group");
+                    groupChoice.removeAllItems();
+                    groupChoice.addItem("Please select group");
                     for (GroupOption groupOption : currentGroupOptions) {
                         if (groupOption.getLabel() != null && !groupOption.getLabel().isBlank()) {
-                            groupChoice.add(groupOption.getLabel());
+                            groupChoice.addItem(groupOption.getLabel());
                         }
                     }
                     if (groupChoice.getItemCount() <= 1) {
                         errorLabel.setText("Load groups failed.");
                         saveButton.setEnabled(false);
-                        groupChoice.removeAll();
-                        groupChoice.add("Load groups failed");
-                        groupChoice.select(0);
+                        groupChoice.removeAllItems();
+                        groupChoice.addItem("Load groups failed");
+                        groupChoice.setSelectedIndex(0);
                         return;
                     }
-                    groupChoice.select(0);
+                    groupChoice.setSelectedIndex(0);
                     saveButton.setEnabled(true);
                     errorLabel.setText("");
                 }));
@@ -250,7 +246,8 @@ public class SigninLocalPrinterUi {
         requestBody.setGroup(resolveSelectedGroupValue());
         requestBody.setMac(currentMac);
         requestBody.setPcName(currentHostName);
-        requestBody.setPrinterName(printerChoice.getSelectedItem());
+        Object selectedPrinter = printerChoice.getSelectedItem();
+        requestBody.setPrinterName(selectedPrinter == null ? "" : selectedPrinter.toString());
         requestBody.setUrl(urlField.getText() == null ? "" : urlField.getText().trim());
         requestBody.setPageWidth(new BigDecimal(pageWidthField.getText().trim()));
         requestBody.setPageHeight(new BigDecimal(pageHeightField.getText().trim()));
@@ -276,20 +273,20 @@ public class SigninLocalPrinterUi {
         }
     }
 
-    private TextField createReadonlyField(String value) {
-        TextField textField = new TextField(value == null ? "" : value);
+    private JTextField createReadonlyField(String value) {
+        JTextField textField = new JTextField(value == null ? "" : value);
         textField.setEditable(false);
         return textField;
     }
 
-    private String validatePrinter(Choice choice) {
+    private String validatePrinter(JComboBox<String> choice) {
         if (choice.getSelectedIndex() <= 0) {
             return "Please select printer name.";
         }
         return null;
     }
 
-    private String validateGroup(Choice choice) {
+    private String validateGroup(JComboBox<String> choice) {
         if (choice.getSelectedIndex() <= 0) {
             return "Please select group.";
         }
@@ -355,7 +352,7 @@ public class SigninLocalPrinterUi {
         String text = useIpUrl ? currentIpUrl : currentLocalUrl;
         urlField.setText(text == null ? "" : text);
         if (urlModeButton != null) {
-            urlModeButton.setLabel(useIpUrl ? "use PC" : "use IP");
+            urlModeButton.setText(useIpUrl ? "use PC" : "use IP");
         }
     }
 
@@ -400,13 +397,13 @@ public class SigninLocalPrinterUi {
     }
 
     private int getHalfFontSize() {
-        Font defaultFont = new Label("Loading...").getFont();
+        Font defaultFont = new JLabel("Loading...").getFont();
         int fontSize = defaultFont == null ? 12 : defaultFont.getSize();
         return fontSize / 2 + fontSize % 2;
     }
 
-    private void addLabel(Dialog target, String text, int x, int y, int width, int hfs, int titleBarHeight) {
-        Label label = new Label(text);
+    private void addLabel(JDialog target, String text, int x, int y, int width, int hfs, int titleBarHeight) {
+        JLabel label = new JLabel(text);
         label.setBounds(x * hfs, y * hfs + titleBarHeight, width * hfs, 4 * hfs);
         target.add(label);
     }

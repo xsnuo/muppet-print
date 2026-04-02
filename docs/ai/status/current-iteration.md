@@ -60,14 +60,13 @@ Improve code quality, harden the AI workflow rules, and align human-facing docum
 - Updated signed-printer desktop page layout: widened `pc name` and `url` columns, renamed `page width/page height` headers to `width/height`, widened dialog to fit all columns, increased table area height, and relies on scrollable table viewport for overflow rows.
 - Added URL mode toggle button in signin UI (`use IP` / `use pc name`): default uses pc-name URL, click toggles URL text to local IP URL and back, and submit now sends the currently displayed URL value.
 - Updated signin URL toggle to `use IP` / `use PC`, made URL textbox editable by operator, and added save-time URL validation (`http://` or `https://` prefix plus non-blank content after protocol).
-- Added shared AWT UI font fallback selection so Windows desktop UI can prefer Chinese-capable fonts when rendering labels, buttons, and dialogs.
 - Hardened local print HTML generation to inject a UTF-8 meta charset declaration when missing, reducing Windows-side garbled Chinese text in local helper pages.
 - Reworked signin IP-mode URL generation to preserve port/path/query segments even when the original host name is not URI-parser-friendly.
 - Normalized LAN hostname URL generation with a unified rule: for URL host names, append `.local` whenever the suffix is not `.local`, regardless of operating system.
 - Reworked duplicate-startup shutdown flow: after showing the "already running" dialog, the process now exits directly instead of closing Spring context during bean init, avoiding extra JVM-shutdown error dialogs on Windows.
-- Strengthened desktop AWT font fallback by loading bundled CJK fonts from `imports/font` before system-font fallback, improving Chinese rendering stability on Windows UI dialogs.
-- Replaced desktop AWT font strategy with a global system-font policy: prefer OS-provided Chinese-capable fonts (especially stable Windows UI fonts such as `Microsoft YaHei UI`) and apply them uniformly across all UI components, including tray menu items.
-- Hardened system-font selection to avoid localized font-name mismatch: UI font resolution now checks preferred family aliases and then falls back to scanning all installed system fonts by actual Chinese glyph support, reducing Windows square-box rendering risk.
+- Completed production desktop UI migration from AWT controls to Swing controls while preserving existing business flow and absolute-position layout in main window, signin dialog, and signed-list dialog.
+- Removed temporary Chinese-rendering troubleshooting paths and custom font injection logic from production UI code; Swing now uses system default font rendering behavior with system look-and-feel.
+- Removed temporary standalone `TestUi` troubleshooting entry class after migration completion.
 
 ## Current Product Understanding
 
