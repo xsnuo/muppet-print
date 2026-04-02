@@ -10,7 +10,7 @@ import javax.swing.UIManager;
 @SpringBootApplication
 public class UiStarter {
 
-    public static final String APP_NAME = "Muppet Printer @FoodsUp";
+    public static final String APP_NAME = "Muppet Printer";
     public static final String APP_VERSION = "1.0.4";
 
     public static void main(String[] args) {
