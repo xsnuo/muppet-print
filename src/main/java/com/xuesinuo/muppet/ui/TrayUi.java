@@ -13,6 +13,8 @@ import java.awt.event.WindowEvent;
 
 import org.springframework.stereotype.Component;
 
+import com.xuesinuo.muppet.UiStarter;
+
 @Component
 public class TrayUi {
 
@@ -34,7 +36,7 @@ public class TrayUi {
             popupMenu.add(openItem);
             popupMenu.addSeparator();
             popupMenu.add(exitItem);
-            trayIcon = new TrayIcon(trayImage, "Muppet Printer", popupMenu);
+            trayIcon = new TrayIcon(trayImage, UiStarter.APP_NAME, popupMenu);
             trayIcon.setImageAutoSize(true);
             trayIcon.addActionListener(e -> onOpen.run());
             try {

@@ -67,6 +67,8 @@ Improve code quality, harden the AI workflow rules, and align human-facing docum
 - Completed production desktop UI migration from AWT controls to Swing controls while preserving existing business flow and absolute-position layout in main window, signin dialog, and signed-list dialog.
 - Removed temporary Chinese-rendering troubleshooting paths and custom font injection logic from production UI code; Swing now uses system default font rendering behavior with system look-and-feel.
 - Removed temporary standalone `TestUi` troubleshooting entry class after migration completion.
+- Centralized software metadata in `UiStarter` as global constants (`APP_NAME`, `APP_VERSION`) and switched UI/version API call sites to reference these constants.
+- Changed the desktop new-version hint to a generic text-only prompt (no download URL in the UI message).
 
 ## Current Product Understanding
 

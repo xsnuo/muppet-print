@@ -4,7 +4,7 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Component;
 
-import com.xuesinuo.muppet.api.VersionApi;
+import com.xuesinuo.muppet.UiStarter;
 import com.xuesinuo.muppet.config.exceptions.ParamException;
 import com.xuesinuo.muppet.config.exceptions.ServiceException;
 import com.xuesinuo.muppet.ui.UiMessageService;
@@ -72,7 +72,7 @@ public class ApiRootVerticle {
                     }
                     try {
                         logWebClient.sendErrorLog(
-                                VersionApi.VERSION,
+                                UiStarter.APP_VERSION,
                                 logBuilder.toString())
                                 .onSuccess(result -> {
                                     if (!result.isSuccess()) {

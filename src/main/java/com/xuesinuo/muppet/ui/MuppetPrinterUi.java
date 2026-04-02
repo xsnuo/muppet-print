@@ -40,6 +40,7 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.stereotype.Component;
 
 import com.microsoft.playwright.Playwright;
+import com.xuesinuo.muppet.UiStarter;
 import com.xuesinuo.muppet.tool.PrinterUtil;
 import com.xuesinuo.muppet.vertx.WebVerticle;
 
@@ -114,7 +115,7 @@ public class MuppetPrinterUi {
     }
 
     private void initMainFrame() {
-        frame.setTitle("Muppet Printer - 中文测试");
+        frame.setTitle(UiStarter.APP_NAME);
         Image icon = getAppIcon();
         if (icon != null) {
             frame.setIconImage(icon);
@@ -577,13 +578,13 @@ public class MuppetPrinterUi {
 
     private void showAlreadyRunningDialog() {
         try {
-            JDialog dialog = new JDialog((Frame) null, "Muppet Print", true);
+            JDialog dialog = new JDialog((Frame) null, UiStarter.APP_NAME, true);
             Image icon = getAppIcon();
             if (icon != null) {
                 dialog.setIconImage(icon);
             }
             dialog.setLayout(new java.awt.BorderLayout());
-            JLabel message = new JLabel("Muppet Print is already running.", SwingConstants.CENTER);
+            JLabel message = new JLabel(UiStarter.APP_NAME + " is already running.", SwingConstants.CENTER);
             JButton confirmButton = new JButton("OK");
             confirmButton.addActionListener(e -> dialog.dispose());
 
