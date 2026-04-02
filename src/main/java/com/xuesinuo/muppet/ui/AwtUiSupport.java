@@ -8,6 +8,7 @@ import java.awt.Menu;
 import java.awt.MenuComponent;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Set;
@@ -100,39 +101,81 @@ public final class AwtUiSupport {
     private static Font loadGlobalUiFont(Font baseFont) {
         int size = baseFont == null || baseFont.getSize() <= 0 ? 12 : baseFont.getSize();
         int style = baseFont == null ? Font.PLAIN : baseFont.getStyle();
-        Set<String> availableFamilies = Set.of(GraphicsEnvironment.getLocalGraphicsEnvironment()
-                .getAvailableFontFamilyNames(Locale.ROOT));
-        for (String family : preferredSystemFontFamilies()) {
-            if (!availableFamilies.contains(family)) {
+        String[] availableFamilies = GraphicsEnvironment.getLocalGraphicsEnvironment()
+                .getAvailableFontFamilyNames(Locale.ROOT);
+
+        Set<String> preferredFamilies = preferredSystemFontFamilies();
+        for (String family : availableFamilies) {
+            if (!matchesPreferredFamily(family, preferredFamilies)) {
                 continue;
             }
-            Font font = new Font(family, style, size);
-            if (font.canDisplayUpTo(FONT_TEST_TEXT) == -1) {
-                return font;
+            Font preferredFont = new Font(family, style, size);
+            if (preferredFont.canDisplayUpTo(FONT_TEST_TEXT) == -1) {
+                return preferredFont;
+            }
+        }
+
+        for (String family : availableFamilies) {
+            Font candidate = new Font(family, style, size);
+            if (candidate.canDisplayUpTo(FONT_TEST_TEXT) == -1) {
+                return candidate;
             }
         }
         return new Font(Font.DIALOG, style, size);
+    }
+
+    private static boolean matchesPreferredFamily(String family, Set<String> preferredFamilies) {
+        if (family == null || family.isBlank()) {
+            return false;
+        }
+        for (String preferredFamily : preferredFamilies) {
+            if (preferredFamily == null || preferredFamily.isBlank()) {
+                continue;
+            }
+            if (family.equalsIgnoreCase(preferredFamily)) {
+                return true;
+            }
+            if (family.toLowerCase(Locale.ROOT).contains(preferredFamily.toLowerCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static Set<String> preferredSystemFontFamilies() {
         String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
         Set<String> families = new LinkedHashSet<>();
         if (osName.contains("win")) {
-            families.add("Microsoft YaHei UI");
-            families.add("Microsoft YaHei");
-            families.add("SimSun");
-            families.add("SimHei");
-            families.add("NSimSun");
+            families.addAll(Arrays.asList(
+                    "Microsoft YaHei UI",
+                    "Microsoft YaHei",
+                    "YaHei",
+                    "微软雅黑",
+                    "SimSun",
+                    "宋体",
+                    "NSimSun",
+                    "SimHei",
+                    "黑体",
+                    "KaiTi",
+                    "楷体",
+                    "DengXian",
+                    "等线"
+            ));
         } else if (osName.contains("mac")) {
-            families.add("PingFang SC");
-            families.add("Hiragino Sans GB");
-            families.add("Heiti SC");
+            families.addAll(Arrays.asList(
+                    "PingFang SC",
+                    "Hiragino Sans GB",
+                    "Heiti SC",
+                    "Songti SC"
+            ));
         } else {
-            families.add("Noto Sans CJK SC");
-            families.add("WenQuanYi Zen Hei");
-            families.add("Source Han Sans SC");
+            families.addAll(Arrays.asList(
+                    "Noto Sans CJK SC",
+                    "WenQuanYi Zen Hei",
+                    "Source Han Sans SC",
+                    "Droid Sans Fallback"
+            ));
         }
-        families.add(Font.DIALOG);
         return families;
     }
 

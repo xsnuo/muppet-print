@@ -67,6 +67,7 @@ Improve code quality, harden the AI workflow rules, and align human-facing docum
 - Reworked duplicate-startup shutdown flow: after showing the "already running" dialog, the process now exits directly instead of closing Spring context during bean init, avoiding extra JVM-shutdown error dialogs on Windows.
 - Strengthened desktop AWT font fallback by loading bundled CJK fonts from `imports/font` before system-font fallback, improving Chinese rendering stability on Windows UI dialogs.
 - Replaced desktop AWT font strategy with a global system-font policy: prefer OS-provided Chinese-capable fonts (especially stable Windows UI fonts such as `Microsoft YaHei UI`) and apply them uniformly across all UI components, including tray menu items.
+- Hardened system-font selection to avoid localized font-name mismatch: UI font resolution now checks preferred family aliases and then falls back to scanning all installed system fonts by actual Chinese glyph support, reducing Windows square-box rendering risk.
 
 ## Current Product Understanding
 
