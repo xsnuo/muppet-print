@@ -109,11 +109,6 @@ public class SignedUi {
         addLabel(dialog, "url", 2, 11, 10, hfs, titleBarHeight);
         urlValueLabel = addValue(dialog, "", 14, 11, 164, hfs, titleBarHeight, Color.BLACK);
 
-        JPanel separatorLine = new JPanel();
-        separatorLine.setBackground(Color.DARK_GRAY);
-        separatorLine.setBounds(2 * hfs, 16 * hfs + titleBarHeight, 177 * hfs, 1);
-        dialog.add(separatorLine);
-
         JScrollPane tableScrollPane = new JScrollPane(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
             JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         tableScrollPane.setBounds(2 * hfs, 16 * hfs + titleBarHeight, 177 * hfs, 42 * hfs);

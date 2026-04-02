@@ -67,7 +67,7 @@ public class MuppetPrinterUi {
     private boolean signinEnable;
 
     private final JFrame frame = new JFrame();
-    private final JLabel portTitelLabel = new JLabel("端口 Web Port:");
+    private final JLabel portTitelLabel = new JLabel("Web Port:");
     private final JLabel portLabel = new JLabel("");
     private final JTextField portTextField = new JTextField(4);
     private final JLabel statusLabel = new JLabel("Status: Stopped");
