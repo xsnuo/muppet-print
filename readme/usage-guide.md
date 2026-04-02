@@ -55,6 +55,8 @@ When printer signin is enabled:
 - `Signin local printer` first loads groups from `GET /muppet/groups`; if group loading fails, signin is blocked and an error is shown.
 - `Signin local printer` submits to `POST /muppet/signin` after local validation.
 - The signin form validates printer selection and page width/height locally before any server request is sent.
+- The signin form prefers a host-name-based local URL by default; switching to `use IP` now keeps the current port and preserves any existing path or query string.
+- LAN URL host names are now normalized uniformly: if the suffix is not `.local`, `.local` is appended automatically.
 - `Signed` opens the machine's signed-printer list loaded from `GET /muppet/signed?mac=<local-mac>`.
 - The signed-printer list displays a `group` column and maps group values to group labels from `GET /muppet/groups`; unmatched values are shown as-is.
 - The signed-printer list highlights local mismatch fields in red for quick operator review.
@@ -104,6 +106,7 @@ Check the `code` and `message` fields in the JSON response. For example:
 - Confirm fonts are installed or bundled.
 - Confirm referenced assets resolve correctly.
 - Re-check page width and height in millimeters.
+- If Windows shows garbled Chinese text in the local print helper page, upgrade to a build that includes the UTF-8 meta injection and Chinese font fallback fix.
 
 ### PDF upload fails
 

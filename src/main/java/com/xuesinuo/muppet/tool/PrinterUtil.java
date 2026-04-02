@@ -102,7 +102,7 @@ public class PrinterUtil {
                 // 1. 准备工作目录和 HTML 文件
                 tempDir = Files.createTempDirectory("muppetprint_");
                 Path htmlFile = tempDir.resolve("index.html");
-                Files.writeString(htmlFile, html, StandardCharsets.UTF_8);
+                Files.writeString(htmlFile, ensureUtf8MetaCharset(html), StandardCharsets.UTF_8);
                 if (imports != null) {
                     for (Map.Entry<String, String> importEntry : imports.entrySet()) {
                         Path importPath = tempDir.resolve(importEntry.getKey());
@@ -215,6 +215,31 @@ public class PrinterUtil {
         } catch (Exception e) {
             log.warn("Failed to copy imports from classpath source", e);
         }
+    }
+
+    private static String ensureUtf8MetaCharset(String html) {
+        if (html == null || html.isBlank()) {
+            return html;
+        }
+        String normalized = html.toLowerCase();
+        if (normalized.contains("charset=utf-8") || normalized.contains("charset=\"utf-8\"")
+                || normalized.contains("charset='utf-8'") || normalized.contains("<meta charset=")) {
+            return html;
+        }
+
+        String metaTag = "<meta charset=\"UTF-8\">\n";
+        int headIndex = normalized.indexOf("<head>");
+        if (headIndex >= 0) {
+            int insertIndex = headIndex + "<head>".length();
+            return html.substring(0, insertIndex) + "\n" + metaTag + html.substring(insertIndex);
+        }
+
+        int htmlIndex = normalized.indexOf("<html>");
+        if (htmlIndex >= 0) {
+            int insertIndex = htmlIndex + "<html>".length();
+            return html.substring(0, insertIndex) + "\n<head>\n" + metaTag + "</head>\n" + html.substring(insertIndex);
+        }
+        return "<head>\n" + metaTag + "</head>\n" + html;
     }
 
     private static String resolveRelativeImportsPath(Resource resource) {

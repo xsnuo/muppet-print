@@ -132,6 +132,8 @@ public class SignedUi {
         closeButton.setBounds(167 * hfs, 60 * hfs + titleBarHeight, 12 * hfs, 4 * hfs);
         closeButton.addActionListener(e -> closeDialog());
         dialog.add(closeButton);
+
+        AwtUiSupport.applyDefaultFont(dialog);
     }
 
     private void loadGroupsAndSignedRecords() {

@@ -60,6 +60,10 @@ Improve code quality, harden the AI workflow rules, and align human-facing docum
 - Updated signed-printer desktop page layout: widened `pc name` and `url` columns, renamed `page width/page height` headers to `width/height`, widened dialog to fit all columns, increased table area height, and relies on scrollable table viewport for overflow rows.
 - Added URL mode toggle button in signin UI (`use IP` / `use pc name`): default uses pc-name URL, click toggles URL text to local IP URL and back, and submit now sends the currently displayed URL value.
 - Updated signin URL toggle to `use IP` / `use PC`, made URL textbox editable by operator, and added save-time URL validation (`http://` or `https://` prefix plus non-blank content after protocol).
+- Added shared AWT UI font fallback selection so Windows desktop UI can prefer Chinese-capable fonts when rendering labels, buttons, and dialogs.
+- Hardened local print HTML generation to inject a UTF-8 meta charset declaration when missing, reducing Windows-side garbled Chinese text in local helper pages.
+- Reworked signin IP-mode URL generation to preserve port/path/query segments even when the original host name is not URI-parser-friendly.
+- Normalized LAN hostname URL generation with a unified rule: for URL host names, append `.local` whenever the suffix is not `.local`, regardless of operating system.
 
 ## Current Product Understanding
 

@@ -6,6 +6,7 @@
 - HTML rendering depends on Playwright and a usable Chromium runtime.
 - Printing behavior may vary by operating system, installed printers, fonts, and drivers.
 - The application assumes a desktop-capable environment because it includes AWT UI and tray behavior.
+- The current URL host-name strategy uses a unified `.local` suffix rule for LAN access. Environments that do not resolve `.local` host names should switch to IP-mode URLs.
 
 ## API Constraints
 

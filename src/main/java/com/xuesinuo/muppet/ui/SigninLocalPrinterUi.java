@@ -13,9 +13,6 @@ import java.awt.TextField;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.math.BigDecimal;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -179,6 +176,8 @@ public class SigninLocalPrinterUi {
         cancelButton.setBounds(64 * hfs, 36 * hfs + titleBarHeight, 12 * hfs, 4 * hfs);
         cancelButton.addActionListener(e -> closeDialog());
         dialog.add(cancelButton);
+
+        AwtUiSupport.applyDefaultFont(dialog);
     }
 
     private void loadGroups() {
@@ -381,50 +380,23 @@ public class SigninLocalPrinterUi {
     }
 
     private String buildIpUrl(String sourceUrl) {
-        if (sourceUrl == null || sourceUrl.isBlank()) {
-            return sourceUrl;
-        }
-        try {
-            URI uri = URI.create(sourceUrl.trim());
-            String scheme = uri.getScheme() == null || uri.getScheme().isBlank() ? "http" : uri.getScheme();
-            String ip = resolveLocalIp();
-            int port = uri.getPort();
-            if (port > 0) {
-                return scheme + "://" + ip + ":" + port;
-            }
-            return scheme + "://" + ip;
-        } catch (Exception ignored) {
-            return sourceUrl;
-        }
+        return AwtUiSupport.buildIpUrl(sourceUrl, extractPort(sourceUrl));
     }
 
-    private String resolveLocalIp() {
-        try {
-            var interfaces = NetworkInterface.getNetworkInterfaces();
-            while (interfaces.hasMoreElements()) {
-                NetworkInterface networkInterface = interfaces.nextElement();
-                if (!networkInterface.isUp() || networkInterface.isLoopback() || networkInterface.isVirtual()) {
-                    continue;
-                }
-                var addresses = networkInterface.getInetAddresses();
-                while (addresses.hasMoreElements()) {
-                    InetAddress address = addresses.nextElement();
-                    if (address.isLoopbackAddress() || address.isLinkLocalAddress()) {
-                        continue;
-                    }
-                    String hostAddress = address.getHostAddress();
-                    if (hostAddress != null && hostAddress.contains(".")) {
-                        return hostAddress;
-                    }
-                }
-            }
-        } catch (Exception ignored) {
+    private String extractPort(String sourceUrl) {
+        if (sourceUrl == null || sourceUrl.isBlank()) {
+            return "";
         }
-        try {
-            return InetAddress.getLocalHost().getHostAddress();
-        } catch (Exception ignored) {
-            return "127.0.0.1";
+        int schemeIndex = sourceUrl.indexOf("://");
+        String hostAndPath = schemeIndex >= 0 ? sourceUrl.substring(schemeIndex + 3) : sourceUrl;
+        int slashIndex = hostAndPath.indexOf('/');
+        String hostPort = slashIndex >= 0 ? hostAndPath.substring(0, slashIndex) : hostAndPath;
+        int colonIndex = hostPort.lastIndexOf(':');
+        if (colonIndex < 0 || colonIndex == hostPort.length() - 1) {
+            return "";
         }
+        String port = hostPort.substring(colonIndex + 1).trim();
+        return port.matches("\\d+") ? port : "";
     }
 
     private int getHalfFontSize() {

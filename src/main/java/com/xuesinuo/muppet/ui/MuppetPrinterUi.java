@@ -16,7 +16,6 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
 import java.net.BindException;
-import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
@@ -176,6 +175,7 @@ public class MuppetPrinterUi {
         messageLabel.setForeground(Color.RED);
         frame.add(messageLabel);
 
+        AwtUiSupport.applyDefaultFont(frame);
         frame.setVisible(true);
     }
 
@@ -346,11 +346,7 @@ public class MuppetPrinterUi {
     }
 
     private String getLocalHostName() {
-        try {
-            return InetAddress.getLocalHost().getHostName();
-        } catch (Exception ignored) {
-            return "localhost";
-        }
+        return AwtUiSupport.resolveDisplayHostName();
     }
 
     private String getLocalMacAddress() {
@@ -404,7 +400,7 @@ public class MuppetPrinterUi {
     }
 
     private String getExpectedLocalUrl() {
-        return "http://" + getLocalHostName() + ":" + getCurrentWebPort();
+        return AwtUiSupport.buildExpectedLocalUrl("http", AwtUiSupport.resolveLanHostName(), getCurrentWebPort());
     }
 
     private int getHalfFontSize() {
