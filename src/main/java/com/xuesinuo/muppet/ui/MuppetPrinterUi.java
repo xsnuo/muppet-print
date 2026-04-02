@@ -85,7 +85,7 @@ public class MuppetPrinterUi {
     public void init() {
         if (!acquireSingleInstanceLock()) {
             showAlreadyRunningDialog();
-            applicationContext.close();
+            exitCurrentProcess();
             return;
         }
 
@@ -446,7 +446,7 @@ public class MuppetPrinterUi {
                 createWindowsShortcut(exePath, lnkPath);
             } catch (Exception e) {
                 e.printStackTrace();
-                uiMessageService.showMessage("自启动设置失败: " + e.getMessage());
+                uiMessageService.showMessage("Enable auto-start failed: " + e.getMessage());
             }
         } else if (os.contains("mac")) {
             try {
@@ -473,7 +473,7 @@ public class MuppetPrinterUi {
                 java.nio.file.Files.write(java.nio.file.Paths.get(plistPath), plist.getBytes());
             } catch (Exception e) {
                 e.printStackTrace();
-                uiMessageService.showMessage("自启动设置失败: " + e.getMessage());
+                uiMessageService.showMessage("Enable auto-start failed: " + e.getMessage());
             }
         }
     }
@@ -491,7 +491,7 @@ public class MuppetPrinterUi {
                 }
             } catch (Exception e) {
                 e.printStackTrace();
-                uiMessageService.showMessage("自启动取消失败: " + e.getMessage());
+                uiMessageService.showMessage("Disable auto-start failed: " + e.getMessage());
             }
         } else if (os.contains("mac")) {
             try {
@@ -503,7 +503,7 @@ public class MuppetPrinterUi {
                 }
             } catch (Exception e) {
                 e.printStackTrace();
-                uiMessageService.showMessage("自启动取消失败: " + e.getMessage());
+                uiMessageService.showMessage("Disable auto-start failed: " + e.getMessage());
             }
         }
     }
@@ -597,6 +597,7 @@ public class MuppetPrinterUi {
             buttonPanel.add(confirmButton);
             dialog.add(message, java.awt.BorderLayout.CENTER);
             dialog.add(buttonPanel, java.awt.BorderLayout.SOUTH);
+            AwtUiSupport.applyDefaultFont(dialog);
             dialog.setSize(320, 140);
             dialog.setLocationRelativeTo(null);
             dialog.addWindowListener(new WindowAdapter() {
@@ -609,6 +610,17 @@ public class MuppetPrinterUi {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private void exitCurrentProcess() {
+        new Thread(() -> {
+            try {
+                Thread.sleep(120);
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+            }
+            System.exit(0);
+        }, "muppet-exit-thread").start();
     }
 
     private boolean acquireSingleInstanceLock() {

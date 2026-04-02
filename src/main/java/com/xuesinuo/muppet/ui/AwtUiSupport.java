@@ -4,6 +4,8 @@ import java.awt.Component;
 import java.awt.Container;
 import java.awt.Font;
 import java.awt.GraphicsEnvironment;
+import java.awt.Menu;
+import java.awt.MenuComponent;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.util.LinkedHashSet;
@@ -15,11 +17,16 @@ import java.util.regex.Pattern;
 public final class AwtUiSupport {
 
     private static final String DEFAULT_WEB_PORT = "58080";
+    private static final String FONT_TEST_TEXT = "中文";
     private static final Pattern URL_PATTERN = Pattern.compile("^(https?://)([^/?#:]+)(:\\d+)?([^?#]*)?(\\?[^#]*)?(#.*)?$",
             Pattern.CASE_INSENSITIVE);
     private static volatile Font defaultUiFont;
 
     private AwtUiSupport() {
+    }
+
+    public static void initializeGlobalUiFont() {
+        resolveDefaultUiFont(new Font(Font.DIALOG, Font.PLAIN, 12));
     }
 
     public static void applyDefaultFont(Component component) {
@@ -42,6 +49,27 @@ public final class AwtUiSupport {
         }
     }
 
+    public static void applyDefaultFont(MenuComponent menuComponent) {
+        if (menuComponent == null) {
+            return;
+        }
+        Font font = resolveDefaultUiFont(menuComponent.getFont());
+        applyMenuFontRecursively(menuComponent, font);
+    }
+
+    private static void applyMenuFontRecursively(MenuComponent menuComponent, Font font) {
+        if (menuComponent == null || font == null) {
+            return;
+        }
+        menuComponent.setFont(font);
+        if (menuComponent instanceof Menu menu) {
+            int itemCount = menu.getItemCount();
+            for (int i = 0; i < itemCount; i++) {
+                applyMenuFontRecursively(menu.getItem(i), font);
+            }
+        }
+    }
+
     private static Font resolveDefaultUiFont(Font baseFont) {
         Font cachedFont = defaultUiFont;
         if (cachedFont != null) {
@@ -54,10 +82,7 @@ public final class AwtUiSupport {
                 return deriveFont(cachedFont, baseFont);
             }
 
-            String family = pickUiFontFamily();
-            int size = baseFont == null || baseFont.getSize() <= 0 ? 12 : baseFont.getSize();
-            int style = baseFont == null ? Font.PLAIN : baseFont.getStyle();
-            defaultUiFont = new Font(family, style, size);
+            defaultUiFont = loadGlobalUiFont(baseFont);
             return defaultUiFont;
         }
     }
@@ -72,18 +97,24 @@ public final class AwtUiSupport {
         return font.deriveFont(baseFont.getStyle(), baseFont.getSize2D());
     }
 
-    private static String pickUiFontFamily() {
+    private static Font loadGlobalUiFont(Font baseFont) {
+        int size = baseFont == null || baseFont.getSize() <= 0 ? 12 : baseFont.getSize();
+        int style = baseFont == null ? Font.PLAIN : baseFont.getStyle();
         Set<String> availableFamilies = Set.of(GraphicsEnvironment.getLocalGraphicsEnvironment()
                 .getAvailableFontFamilyNames(Locale.ROOT));
-        for (String candidate : preferredFontFamilies()) {
-            if (availableFamilies.contains(candidate)) {
-                return candidate;
+        for (String family : preferredSystemFontFamilies()) {
+            if (!availableFamilies.contains(family)) {
+                continue;
+            }
+            Font font = new Font(family, style, size);
+            if (font.canDisplayUpTo(FONT_TEST_TEXT) == -1) {
+                return font;
             }
         }
-        return Font.DIALOG;
+        return new Font(Font.DIALOG, style, size);
     }
 
-    private static Set<String> preferredFontFamilies() {
+    private static Set<String> preferredSystemFontFamilies() {
         String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
         Set<String> families = new LinkedHashSet<>();
         if (osName.contains("win")) {
@@ -91,6 +122,7 @@ public final class AwtUiSupport {
             families.add("Microsoft YaHei");
             families.add("SimSun");
             families.add("SimHei");
+            families.add("NSimSun");
         } else if (osName.contains("mac")) {
             families.add("PingFang SC");
             families.add("Hiragino Sans GB");

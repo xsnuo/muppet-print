@@ -64,6 +64,9 @@ Improve code quality, harden the AI workflow rules, and align human-facing docum
 - Hardened local print HTML generation to inject a UTF-8 meta charset declaration when missing, reducing Windows-side garbled Chinese text in local helper pages.
 - Reworked signin IP-mode URL generation to preserve port/path/query segments even when the original host name is not URI-parser-friendly.
 - Normalized LAN hostname URL generation with a unified rule: for URL host names, append `.local` whenever the suffix is not `.local`, regardless of operating system.
+- Reworked duplicate-startup shutdown flow: after showing the "already running" dialog, the process now exits directly instead of closing Spring context during bean init, avoiding extra JVM-shutdown error dialogs on Windows.
+- Strengthened desktop AWT font fallback by loading bundled CJK fonts from `imports/font` before system-font fallback, improving Chinese rendering stability on Windows UI dialogs.
+- Replaced desktop AWT font strategy with a global system-font policy: prefer OS-provided Chinese-capable fonts (especially stable Windows UI fonts such as `Microsoft YaHei UI`) and apply them uniformly across all UI components, including tray menu items.
 
 ## Current Product Understanding
 

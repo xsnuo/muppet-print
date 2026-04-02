@@ -22,6 +22,7 @@ The desktop shell provides:
 - Auto-start toggle on supported platforms.
 - Tray minimization behavior where supported.
 - Single-instance startup interception. A later launch is blocked by a local file lock and exits with an already-running prompt.
+- After closing the already-running prompt, the duplicate process exits immediately without showing an extra JVM-shutdown error dialog.
 
 ## Starting The Service
 
@@ -107,6 +108,11 @@ Check the `code` and `message` fields in the JSON response. For example:
 - Confirm referenced assets resolve correctly.
 - Re-check page width and height in millimeters.
 - If Windows shows garbled Chinese text in the local print helper page, upgrade to a build that includes the UTF-8 meta injection and Chinese font fallback fix.
+
+### Windows Desktop UI Chinese text is garbled
+
+- New builds first try bundled CJK fonts and then fall back to system CJK-capable fonts.
+- If issues persist, check whether endpoint security software blocked or removed packaged `imports/font` assets.
 
 ### PDF upload fails
 
